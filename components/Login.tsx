@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, User, LogIn, AlertCircle, Copy } from 'lucide-react';
+import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
 import { getVoterByLrn } from '../lib/supabase'; // Import real function
 import { Voter, SCHOOL_LOGO_URL } from '../types';
@@ -9,6 +9,11 @@ interface LoginProps {
   onLoginSuccess: (voter: Voter) => void;
   onAdminLogin: () => void;
 }
+
+// --- ADMIN CREDENTIALS ---
+// CUSTOMIZE HERE: Change these values to secure your admin dashboard
+const ADMIN_LRN = '111111111111';
+const ADMIN_PASSCODE = 'SSLGRMCHS@2026';
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
   const [lrn, setLrn] = useState('');
@@ -22,8 +27,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
     setLoading(true);
 
     try {
-      // 1. Check for Hardcoded Admin
-      if (lrn === 'ADMIN' && passcode === 'ADMIN') {
+      // 1. Check for Admin Credentials (Backdoor)
+      // Note: Passcode input forces UpperCase, so ensure ADMIN_PASSCODE is uppercase in code or compatible
+      if (lrn === ADMIN_LRN && passcode === ADMIN_PASSCODE) {
         onAdminLogin();
         return;
       }
@@ -60,12 +66,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
     }
   };
 
-  const fillCredentials = (l: string, p: string) => {
-    setLrn(l);
-    setPasscode(p);
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <motion.div 
@@ -94,7 +94,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
                 type="text"
                 maxLength={12}
                 value={lrn}
-                onChange={(e) => setLrn(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setLrn(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none text-lg tracking-widest text-center font-mono"
                 placeholder="000000000000"
                 required
@@ -146,31 +146,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
               )}
             </button>
           </form>
-
-          {/* DEMO CREDENTIALS SECTION */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-               Test Accounts <span className="font-normal normal-case text-gray-300">(Click to fill)</span>
-            </p>
-            <div className="grid grid-cols-1 gap-3">
-              <button 
-                onClick={() => fillCredentials('ADMIN', 'ADMIN')}
-                type="button"
-                className="text-left bg-slate-50 p-3 rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-blue-300 transition-all group"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs font-bold text-blue-900">Admin</p>
-                  <Copy size={12} className="text-gray-400 opacity-0 group-hover:opacity-100" />
-                </div>
-                <p className="font-mono text-[10px] text-gray-500">LRN: ADMIN</p>
-                <p className="font-mono text-[10px] text-gray-500">PW: ADMIN</p>
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-400 mt-2 text-center">
-              Student accounts must be created in Admin Dashboard first.
-            </p>
-          </div>
-
         </div>
       </motion.div>
     </div>
