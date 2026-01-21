@@ -11,6 +11,8 @@ interface BallotProps {
   onLogout: () => void;
 }
 
+const DEFAULT_PLACEHOLDER = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+
 const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selections, setSelections] = useState<VoteSelection>({});
@@ -140,7 +142,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                   >
                     <div className="relative shrink-0">
                       <img 
-                        src={candidate.image_url || "https://picsum.photos/200"} 
+                        src={candidate.image_url || DEFAULT_PLACEHOLDER} 
                         alt={candidate.full_name} 
                         className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
                       />

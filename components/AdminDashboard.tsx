@@ -21,6 +21,8 @@ interface AdminDashboardProps {
 
 type Tab = 'canvassing' | 'candidates' | 'voters';
 
+const DEFAULT_PLACEHOLDER = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('canvassing');
   const [data, setData] = useState<Record<string, any[]>>({});
@@ -145,11 +147,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     try {
       if (!formData.full_name || !formData.position) return;
       
-      let imageUrl = "https://picsum.photos/200"; // Fallback
+      let imageUrl = DEFAULT_PLACEHOLDER;
       
       if (imageFile) {
         const uploadedUrl = await uploadCandidatePhoto(imageFile);
-        if (uploadedUrl) imageUrl = uploadedUrl;
+        if (uploadedUrl) {
+           imageUrl = uploadedUrl;
+        } else {
+           alert("Image upload failed. The candidate will be created with a default placeholder image. Please check your Supabase Storage settings (public bucket 'candidate-photos').");
+        }
       }
 
       await addCandidate({
@@ -493,7 +499,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                          <tr key={candidate.id} className="hover:bg-slate-700/30 transition">
                            <td className="px-6 py-4 flex items-center gap-3">
                              <img 
-                               src={candidate.image_url} 
+                               src={candidate.image_url || DEFAULT_PLACEHOLDER} 
                                alt={candidate.full_name} 
                                className="w-10 h-10 rounded-full object-cover bg-slate-700"
                              />
