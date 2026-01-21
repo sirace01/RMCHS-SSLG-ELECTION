@@ -130,7 +130,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
             </div>
 
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {candidatesInPosition.map((candidate) => {
+              {(candidatesInPosition as Candidate[]).map((candidate) => {
                 const isSelected = selections[position] === candidate.id;
                 return (
                   <div 

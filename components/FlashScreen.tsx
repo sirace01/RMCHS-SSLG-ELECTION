@@ -33,7 +33,7 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, onComplete }) => {
           transition={{ type: "spring", bounce: 0.5, duration: 1.5 }}
           src={SCHOOL_LOGO_URL}
           alt="School Logo"
-          className="w-24 h-24 md:w-40 md:h-40 object-contain drop-shadow-xl"
+          className="w-24 h-24 md:w-40 md:h-40 object-contain rounded-full drop-shadow-xl"
         />
         
         <motion.div 

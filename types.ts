@@ -46,4 +46,4 @@ export const POSITIONS_ORDER = [
 ];
 
 export const SCHOOL_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyAvwcGMAaV6-A54QZA1rpKFw6vSBXTOJ8AQ&s";
-export const SSLG_LOGO_URL = "https://picsum.photos/id/20/200/200"; // Placeholder for SSLG logo as one wasn't provided, using generic
+export const SSLG_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROg9KNTPLlAuGyuecZQ--Vm9XwxY6So7VRYw&s";
