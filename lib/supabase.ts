@@ -178,29 +178,26 @@ export const getVoteCounts = async (): Promise<Record<string, number>> => {
 };
 
 // 11. STORAGE: Upload Image
-export const uploadCandidatePhoto = async (file: File): Promise<string | null> => {
-  try {
-    const fileExt = file.name.split('.').pop();
-    // Use timestamp and random string to ensure unique filenames
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-    const filePath = `${fileName}`;
+export const uploadCandidatePhoto = async (file: File): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  // Use timestamp and random string to ensure unique filenames
+  const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+  const filePath = `${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('candidate-photos')
-      .upload(filePath, file);
+  const { error: uploadError } = await supabase.storage
+    .from('candidate-photos')
+    .upload(filePath, file, {
+       upsert: false
+    });
 
-    if (uploadError) {
-      console.error('Error uploading image:', uploadError);
-      return null;
-    }
-
-    const { data } = supabase.storage
-      .from('candidate-photos')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (error) {
-    console.error("Unexpected error during file upload:", error);
-    return null;
+  if (uploadError) {
+    console.error('Error uploading image:', uploadError);
+    throw uploadError; // Throwing error so UI can catch it
   }
+
+  const { data } = supabase.storage
+    .from('candidate-photos')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
 };

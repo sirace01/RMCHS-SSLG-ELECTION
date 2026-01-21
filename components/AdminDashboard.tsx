@@ -150,12 +150,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       let imageUrl = DEFAULT_PLACEHOLDER;
       
       if (imageFile) {
-        const uploadedUrl = await uploadCandidatePhoto(imageFile);
-        if (uploadedUrl) {
-           imageUrl = uploadedUrl;
-        } else {
-           alert("Image upload failed. The candidate will be created with a default placeholder image. Please check your Supabase Storage settings (public bucket 'candidate-photos').");
-        }
+        // Now catches specific upload errors
+        imageUrl = await uploadCandidatePhoto(imageFile);
       }
 
       await addCandidate({
@@ -177,9 +173,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setImagePreview(null);
       fetchData();
       alert("Candidate added successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error adding candidate.");
+      // Display the actual error message to the user
+      const msg = error.message || "Unknown error";
+      alert(`Error adding candidate: ${msg}. Check Supabase Storage policies.`);
     } finally {
       setIsAdding(false);
     }

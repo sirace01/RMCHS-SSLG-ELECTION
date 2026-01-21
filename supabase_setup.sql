@@ -1,7 +1,6 @@
 -- Copy and paste this into the Supabase SQL Editor to fix the image upload issue.
 
--- 1. Create the Storage Bucket for Candidate Photos
--- This creates a public bucket named 'candidate-photos'
+-- 1. Create the Storage Bucket for Candidate Photos (if it doesn't exist)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('candidate-photos', 'candidate-photos', true)
 ON CONFLICT (id) DO NOTHING;
@@ -10,6 +9,7 @@ ON CONFLICT (id) DO NOTHING;
 DROP POLICY IF EXISTS "Public View Access" ON storage.objects;
 DROP POLICY IF EXISTS "Public Upload Access" ON storage.objects;
 DROP POLICY IF EXISTS "Public Delete Access" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
 
 -- 3. Create Policy: Allow Public Read Access
 -- This ensures the Ballot and Admin Dashboard can display the images.
@@ -18,14 +18,14 @@ ON storage.objects FOR SELECT
 USING ( bucket_id = 'candidate-photos' );
 
 -- 4. Create Policy: Allow Public Uploads
--- CRITICAL: Since the app uses client-side admin validation without Supabase Auth,
--- we must allow the 'anon' key to upload files to this specific bucket.
-CREATE POLICY "Public Upload Access"
+-- We explicitly grant this TO public so 'anon' users (the frontend admin) can upload.
+CREATE POLICY "Allow public uploads"
 ON storage.objects FOR INSERT
+TO public
 WITH CHECK ( bucket_id = 'candidate-photos' );
 
 -- 5. Create Policy: Allow Public Deletion
--- Required for the "Delete Candidate" function to work properly.
 CREATE POLICY "Public Delete Access"
 ON storage.objects FOR DELETE
+TO public
 USING ( bucket_id = 'candidate-photos' );

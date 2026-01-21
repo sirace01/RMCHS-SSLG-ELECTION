@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, AlertTriangle, Send, LogOut, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle, Send, LogOut, ChevronRight, X, ZoomIn } from 'lucide-react';
 import { Voter, Candidate, POSITIONS_ORDER, VoteSelection } from '../types';
 import { getCandidates, submitBallot } from '../lib/supabase'; // Real functions
 import { cn } from '../lib/utils';
@@ -19,6 +19,9 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State for the image lightbox
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadCandidates = async () => {
@@ -140,14 +143,24 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                         : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                     )}
                   >
-                    <div className="relative shrink-0">
-                      <img 
-                        src={candidate.image_url || DEFAULT_PLACEHOLDER} 
-                        alt={candidate.full_name} 
-                        className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
-                      />
+                    <div className="relative shrink-0 group/image">
+                      <div className="relative w-16 h-16">
+                        <img 
+                          src={candidate.image_url || DEFAULT_PLACEHOLDER} 
+                          alt={candidate.full_name} 
+                          className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm cursor-zoom-in hover:scale-105 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Stop bubbling so we don't select the candidate
+                            setZoomedImage(candidate.image_url || DEFAULT_PLACEHOLDER);
+                          }}
+                        />
+                         <div className="absolute inset-0 rounded-full bg-black/20 opacity-0 group-hover/image:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
+                            <ZoomIn size={14} className="text-white drop-shadow-md" />
+                         </div>
+                      </div>
+                      
                       {isSelected && (
-                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-0.5">
+                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-0.5 z-10 pointer-events-none">
                           <CheckCircle2 size={16} fill="currentColor" className="text-blue-600 bg-white rounded-full" />
                         </div>
                       )}
@@ -181,7 +194,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
       </div>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-40">
+      <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-30">
         <button
           onClick={() => setIsConfirming(true)}
           disabled={!isBallotComplete}
@@ -247,6 +260,39 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                   {isSubmitting ? <span className="animate-spin text-xl">⏳</span> : <><Send size={18} /> Cast Vote</>}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Zoom Lightbox */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <div 
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+            onClick={() => setZoomedImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+              onClick={(e) => e.stopPropagation()} // Clicking the image/container shouldn't close it, only backdrop
+            >
+               <div className="relative">
+                  <img 
+                    src={zoomedImage} 
+                    className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border-4 border-white/20" 
+                    alt="Candidate Zoom"
+                  />
+                  <button 
+                     className="absolute -top-12 -right-4 md:-right-12 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-2 backdrop-blur-sm"
+                     onClick={() => setZoomedImage(null)}
+                  >
+                    <X size={28} />
+                  </button>
+               </div>
+               <p className="text-white/60 text-sm mt-4">Click anywhere outside to close</p>
             </motion.div>
           </div>
         )}
