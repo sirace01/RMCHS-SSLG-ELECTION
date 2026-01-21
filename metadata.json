@@ -1,0 +1,5 @@
+{
+  "name": "SSLG Voting System - RMCHS",
+  "description": "A secure, grade-level specific voting system for Ramon Magsaysay (Cubao) High School SSLG elections featuring real-time canvassing and secure voter authentication.",
+  "requestFramePermissions": []
+}
