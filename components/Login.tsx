@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, LogIn, AlertCircle, Copy } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
-import { supabase, mockVoters, delay } from '../lib/supabase';
+import { getVoterByLrn } from '../lib/supabase'; // Import real function
 import { Voter, SCHOOL_LOGO_URL } from '../types';
 
 interface LoginProps {
@@ -22,34 +22,31 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
     setLoading(true);
 
     try {
-      // --- REAL IMPLEMENTATION WITH SUPABASE ---
-      // const { data: voter, error: fetchError } = await supabase
-      //   .from('voters')
-      //   .select('*')
-      //   .eq('lrn', lrn)
-      //   .single();
-      
-      // --- MOCK IMPLEMENTATION ---
-      await delay(800);
-      const voter = mockVoters.find(v => v.lrn === lrn);
+      // 1. Check for Hardcoded Admin
+      if (lrn === 'ADMIN' && passcode === 'ADMIN') {
+        onAdminLogin();
+        return;
+      }
+
+      // 2. Fetch Voter from DB
+      const voter = await getVoterByLrn(lrn);
 
       if (!voter) {
         throw new Error("LRN not found in the registry.");
       }
 
-      if (voter.passcode === 'ADMIN' && passcode === 'ADMIN') {
-        onAdminLogin();
-        return;
-      }
-
-      // Verify Passcode Logic
+      // 3. Verify Passcode
+      // Logic: Allow exact match from DB OR the generated formula
       const generatedPasscode = generatePasscode(voter.lrn, voter.first_name, voter.last_name);
       
-      // Allow exact match from DB (if manually set) OR the generated logic check
-      if (passcode !== voter.passcode && passcode !== generatedPasscode) {
+      const inputPass = passcode.toUpperCase();
+      const dbPass = voter.passcode?.toUpperCase();
+
+      if (inputPass !== dbPass && inputPass !== generatedPasscode) {
          throw new Error("Invalid passcode. Please check your LRN and Name combination.");
       }
 
+      // 4. Check if already voted
       if (voter.has_voted) {
         throw new Error("This learner has already cast their vote.");
       }
@@ -153,9 +150,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
           {/* DEMO CREDENTIALS SECTION */}
           <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-               Demo Accounts <span className="font-normal normal-case text-gray-300">(Click to fill)</span>
+               Test Accounts <span className="font-normal normal-case text-gray-300">(Click to fill)</span>
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <button 
                 onClick={() => fillCredentials('ADMIN', 'ADMIN')}
                 type="button"
@@ -168,20 +165,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
                 <p className="font-mono text-[10px] text-gray-500">LRN: ADMIN</p>
                 <p className="font-mono text-[10px] text-gray-500">PW: ADMIN</p>
               </button>
-
-              <button 
-                onClick={() => fillCredentials('111111111111', '11111DS')}
-                type="button"
-                className="text-left bg-slate-50 p-3 rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-blue-300 transition-all group"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs font-bold text-blue-900">Student</p>
-                  <Copy size={12} className="text-gray-400 opacity-0 group-hover:opacity-100" />
-                </div>
-                <p className="font-mono text-[10px] text-gray-500">LRN: 11111...</p>
-                <p className="font-mono text-[10px] text-gray-500">PW: 11111DS</p>
-              </button>
             </div>
+            <p className="text-[10px] text-gray-400 mt-2 text-center">
+              Student accounts must be created in Admin Dashboard first.
+            </p>
           </div>
 
         </div>

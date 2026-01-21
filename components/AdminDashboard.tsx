@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { mockCandidates, mockVoters, addCandidate, deleteCandidate, addVoter, deleteVoter, bulkUploadVoters } from '../lib/supabase';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  getCandidates, 
+  getAllVoters, 
+  getVoteCounts,
+  addCandidate, 
+  deleteCandidate, 
+  addVoter, 
+  deleteVoter, 
+  bulkImportVoters,
+  uploadCandidatePhoto
+} from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER } from '../types';
 import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -19,6 +29,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // Candidates State
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   
   // Voters State
   const [voterList, setVoterList] = useState<Voter[]>([]);
@@ -31,6 +42,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     partylist: '',
     grade_level: undefined,
   });
+  
   const [voterForm, setVoterForm] = useState({
     lrn: '',
     first_name: '',
@@ -38,68 +50,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     grade_level: 7
   });
   
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const fetchData = () => {
-    // MOCK DATA GENERATION - In real app, this is a Supabase subscription or fetch
-    const voteCounts: Record<string, number> = {};
-    
-    // Refresh local lists from source
-    setCandidateList([...mockCandidates]);
-    setVoterList([...mockVoters]);
+  // --- DATA FETCHING ---
+  const fetchData = async () => {
+    setIsLoadingData(true);
+    try {
+      // 1. Fetch Lists
+      const cList = await getCandidates();
+      const vList = await getAllVoters();
+      
+      setCandidateList(cList);
+      setVoterList(vList);
 
-    // Simulate random votes for demo visualization
-    mockCandidates.forEach(c => {
-      voteCounts[c.id] = Math.floor(Math.random() * 100);
-    });
+      // 2. Fetch Votes
+      const voteCounts = await getVoteCounts();
 
-    const newData: Record<string, any[]> = {};
+      // 3. Process Chart Data
+      const newData: Record<string, any[]> = {};
 
-    POSITIONS_ORDER.forEach(pos => {
-       if (pos === 'Grade Level Rep') {
-          // Special handling to split by grade level
-          const reps = mockCandidates.filter(c => c.position === 'Grade Level Rep');
-          // Group by grade
-          const grades = Array.from(new Set(reps.map(r => r.grade_level))).sort((a,b) => (a || 0) - (b || 0));
-          
-          grades.forEach(g => {
-             if (!g) return; // skip if undefined
-             const relevantCandidates = reps.filter(c => c.grade_level === g);
-             const chartData = relevantCandidates.map(c => ({
-                name: c.full_name,
-                shortName: c.full_name.split(' ')[0], 
-                votes: voteCounts[c.id] || 0,
-                partylist: c.partylist,
-                image: c.image_url
-             }));
-             newData[`Grade ${g} Representative`] = chartData;
-          });
+      POSITIONS_ORDER.forEach(pos => {
+         if (pos === 'Grade Level Rep') {
+            const reps = cList.filter(c => c.position === 'Grade Level Rep');
+            const grades = Array.from(new Set(reps.map(r => r.grade_level))).sort((a,b) => (a || 0) - (b || 0));
+            
+            grades.forEach(g => {
+               if (!g) return;
+               const relevantCandidates = reps.filter(c => c.grade_level === g);
+               if (relevantCandidates.length > 0) {
+                 const chartData = relevantCandidates.map(c => ({
+                    name: c.full_name,
+                    shortName: c.full_name.split(' ')[0], 
+                    votes: voteCounts[c.id] || 0,
+                    partylist: c.partylist,
+                    image: c.image_url
+                 }));
+                 newData[`Grade ${g} Representative`] = chartData;
+               }
+            });
 
-       } else {
-           const relevantCandidates = mockCandidates.filter(c => c.position === pos);
-           
-           if (relevantCandidates.length > 0) {
-             const chartData = relevantCandidates.map(c => ({
-               name: c.full_name,
-               shortName: c.full_name.split(' ')[0], 
-               votes: voteCounts[c.id] || 0,
-               partylist: c.partylist,
-               image: c.image_url
-             }));
-             
-             newData[pos] = chartData;
-           }
-       }
-    });
+         } else {
+             const relevantCandidates = cList.filter(c => c.position === pos);
+             if (relevantCandidates.length > 0) {
+               const chartData = relevantCandidates.map(c => ({
+                 name: c.full_name,
+                 shortName: c.full_name.split(' ')[0], 
+                 votes: voteCounts[c.id] || 0,
+                 partylist: c.partylist,
+                 image: c.image_url
+               }));
+               newData[pos] = chartData;
+             }
+         }
+      });
 
-    setData(newData);
+      setData(newData);
 
-    // Turnout Calculation based on actual voter list
-    const votedCount = mockVoters.filter(v => v.has_voted).length;
-    setTurnout({
-      voted: votedCount,
-      total: mockVoters.length
-    });
+      // 4. Calculate Turnout
+      const votedCount = vList.filter(v => v.has_voted).length;
+      setTurnout({
+        voted: votedCount,
+        total: vList.length
+      });
+
+    } catch (e) {
+      console.error("Failed to load admin data", e);
+    } finally {
+      setIsLoadingData(false);
+    }
   };
 
   useEffect(() => {
@@ -108,10 +127,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // --- HANDLERS ---
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Create a fake URL for preview since we don't have a real backend storage bucket in this demo
+      setImageFile(file);
       const url = URL.createObjectURL(file);
       setImagePreview(url);
     }
@@ -124,26 +145,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     try {
       if (!formData.full_name || !formData.position) return;
       
+      let imageUrl = "https://picsum.photos/200"; // Fallback
+      
+      if (imageFile) {
+        const uploadedUrl = await uploadCandidatePhoto(imageFile);
+        if (uploadedUrl) imageUrl = uploadedUrl;
+      }
+
       await addCandidate({
         full_name: formData.full_name,
         position: formData.position,
         partylist: formData.partylist || 'Independent',
         grade_level: formData.position === 'Grade Level Rep' ? formData.grade_level : undefined,
-        image_url: imagePreview || "https://picsum.photos/200" // Fallback image
+        image_url: imageUrl
       });
 
-      // Reset Form
+      // Reset
       setFormData({
         full_name: '',
         position: POSITIONS_ORDER[0],
         partylist: '',
         grade_level: undefined,
       });
+      setImageFile(null);
       setImagePreview(null);
-      fetchData(); // Refresh list immediately
+      fetchData();
       alert("Candidate added successfully!");
     } catch (error) {
       console.error(error);
+      alert("Error adding candidate.");
     } finally {
       setIsAdding(false);
     }
@@ -159,18 +189,59 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       alert("Voter registered successfully.");
     } catch (error) {
       console.error(error);
+      alert("Error adding voter. LRN might be duplicate.");
     } finally {
       setIsAdding(false);
     }
   };
 
-  const handleBulkImport = async () => {
-    if(window.confirm("Simulate importing 50 students from CSV?")) {
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+
       setIsImporting(true);
-      await bulkUploadVoters(50);
-      setIsImporting(false);
-      fetchData();
-    }
+      try {
+        const rows = text.split('\n');
+        const votersToImport = [];
+
+        // Assuming Header row, start at i=1
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i].trim();
+          if (!row) continue;
+          
+          const cols = row.split(',');
+          if (cols.length >= 4) {
+            votersToImport.push({
+              lrn: cols[0].trim(),
+              first_name: cols[1].trim(),
+              last_name: cols[2].trim(),
+              grade_level: cols[3].trim()
+            });
+          }
+        }
+
+        if (votersToImport.length > 0) {
+          await bulkImportVoters(votersToImport);
+          alert(`Successfully imported ${votersToImport.length} voters.`);
+          fetchData();
+        } else {
+          alert("No valid data found in CSV.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error processing CSV file.");
+      } finally {
+        setIsImporting(false);
+        // Clear input
+        e.target.value = ''; 
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleDownloadTemplate = () => {
@@ -187,9 +258,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleDelete = async (id: string, type: 'candidate' | 'voter') => {
     if(window.confirm(`Are you sure you want to delete this ${type}?`)) {
-      if (type === 'candidate') await deleteCandidate(id);
-      else await deleteVoter(id);
-      fetchData();
+      try {
+        if (type === 'candidate') await deleteCandidate(id);
+        else await deleteVoter(id);
+        fetchData();
+      } catch (e) {
+        alert("Failed to delete. It might be linked to existing votes.");
+      }
     }
   };
 
@@ -267,11 +342,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
             {/* Charts Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Object.keys(data).length === 0 && (
+                <div className="col-span-2 text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                  {isLoadingData ? "Loading results..." : "No candidates or votes yet."}
+                </div>
+              )}
               {Object.entries(data).map(([pos, chartData]) => (
                 <div key={pos} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-slate-200">{pos}</h3>
-                    <RefreshCw size={14} className="text-slate-500 animate-spin-slow" />
+                    <RefreshCw size={14} className={cn("text-slate-500", isLoadingData && "animate-spin")} />
                   </div>
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -523,18 +603,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </form>
 
                   <div className="mt-6 pt-6 border-t border-slate-700 space-y-3">
-                    <button 
-                      onClick={handleBulkImport}
-                      disabled={isImporting}
-                      className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg transition flex items-center justify-center gap-2 border border-slate-600"
-                    >
-                      {isImporting ? (
-                         <span className="animate-spin">⏳</span>
-                      ) : (
-                         <FileSpreadsheet size={18} />
-                      )}
-                      Import CSV / Excel
-                    </button>
+                    <div className="relative">
+                      <button 
+                        disabled={isImporting}
+                        className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg transition flex items-center justify-center gap-2 border border-slate-600 cursor-pointer"
+                      >
+                        {isImporting ? (
+                           <span className="animate-spin">⏳</span>
+                        ) : (
+                           <FileSpreadsheet size={18} />
+                        )}
+                        Import CSV / Excel
+                      </button>
+                      <input 
+                        type="file" 
+                        accept=".csv"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={handleFileImport}
+                        disabled={isImporting}
+                      />
+                    </div>
                     
                     <button 
                       onClick={handleDownloadTemplate}
@@ -544,7 +632,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </button>
 
                     <p className="text-[10px] text-slate-500 text-center">
-                      Simulates uploading a file with 50 students
+                      Upload .csv file with headers: lrn, first_name, last_name, grade_level
                     </p>
                   </div>
                 </div>
@@ -607,7 +695,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        {voterList.length === 0 && (
                          <tr>
                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                             No voters registered yet. Use the form or import to add students.
+                             {isLoadingData ? "Loading..." : "No voters registered yet."}
                            </td>
                          </tr>
                        )}

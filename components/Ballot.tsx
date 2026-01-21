@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Circle, AlertTriangle, Send, LogOut, ChevronRight } from 'lucide-react';
-import { Voter, Candidate, POSITIONS_ORDER, VoteSelection, AppScreen } from '../types';
-import { mockCandidates, delay } from '../lib/supabase';
-import { cn, getOrdinal } from '../lib/utils';
+import { Voter, Candidate, POSITIONS_ORDER, VoteSelection } from '../types';
+import { getCandidates, submitBallot } from '../lib/supabase'; // Real functions
+import { cn } from '../lib/utils';
 
 interface BallotProps {
   voter: Voter;
@@ -16,33 +16,34 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   const [selections, setSelections] = useState<VoteSelection>({});
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // In real app, fetch from Supabase 'candidates' table
     const loadCandidates = async () => {
-      // Filter candidates: Everyone sees main positions. Grade Level Reps only if matching grade.
-      const filtered = mockCandidates.filter(c => {
+      setIsLoading(true);
+      const allCandidates = await getCandidates();
+      
+      // Filter: Everyone sees main positions. Grade Level Reps only if matching grade.
+      const filtered = allCandidates.filter(c => {
         if (c.position === 'Grade Level Rep') {
           return c.grade_level === voter.grade_level;
         }
         return true;
       });
+      
       setCandidates(filtered);
+      setIsLoading(false);
     };
     loadCandidates();
   }, [voter.grade_level]);
 
-  // Group candidates by position based on defined order
+  // Group candidates by position
   const groupedCandidates = useMemo(() => {
     const groups: Record<string, Candidate[]> = {};
     POSITIONS_ORDER.forEach(pos => {
-      // If user is Grade 10, position 'Grade Level Rep' becomes 'Grade 10 Representative' for display
       const displayPos = pos === 'Grade Level Rep' ? `Grade ${voter.grade_level} Representative` : pos;
-      
-      // Find candidates for the raw position name
       const cands = candidates.filter(c => c.position === pos);
       
-      // Only add to groups if candidates exist for this voter
       if (cands.length > 0) {
         groups[displayPos] = cands;
       }
@@ -58,7 +59,6 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   };
 
   const isBallotComplete = useMemo(() => {
-    // Check if every displayed position has a selection (candidate or abstain)
     const displayedPositions = Object.keys(groupedCandidates);
     return displayedPositions.every(pos => selections[pos]);
   }, [groupedCandidates, selections]);
@@ -66,24 +66,31 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // --- SUPABASE RPC TRANSACTION MOCK ---
-      // const { error } = await supabase.rpc('submit_ballot', {
-      //   p_voter_id: voter.id,
-      //   p_votes: Object.entries(selections).map(([pos, candId]) => ({
-      //     position: pos,
-      //     candidate_id: candId === 'ABSTAIN' ? null : candId,
-      //     grade_level: voter.grade_level
-      //   }))
-      // });
-      
-      await delay(1500); // Simulate network
-      onVoteSubmitted();
+      const success = await submitBallot(voter, selections);
+      if (success) {
+        onVoteSubmitted();
+      } else {
+        alert("Failed to submit vote. Please try again or contact an admin.");
+        setIsSubmitting(false);
+        setIsConfirming(false);
+      }
     } catch (e) {
-      alert("Failed to submit vote. Please try again.");
+      alert("An unexpected error occurred.");
       setIsSubmitting(false);
       setIsConfirming(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+           <div className="w-10 h-10 border-4 border-blue-900 border-t-transparent rounded-full animate-spin" />
+           <p className="text-gray-500 text-sm animate-pulse">Loading Candidates...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -92,7 +99,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-blue-900">Official Ballot</h1>
-            <p className="text-xs text-gray-500">Loggd in as: <span className="font-semibold">{voter.lrn}</span></p>
+            <p className="text-xs text-gray-500">Logged in as: <span className="font-semibold">{voter.lrn}</span></p>
           </div>
           <button 
             onClick={onLogout}
