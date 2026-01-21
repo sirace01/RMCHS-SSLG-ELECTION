@@ -3,9 +3,17 @@ import { Voter, Candidate, VoteSelection } from '../types';
 import { generatePasscode } from './utils';
 
 // Access environment variables
-// Use fallbacks to prevent "supabaseUrl is required" error during initialization if env vars are missing
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+// Use provided credentials as default fallback if env vars are missing
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aqcwibfanlyhpwmtqdgq.supabase.co';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxY3dpYmZhbmx5aHB3bXRxZGdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NjI1OTUsImV4cCI6MjA4NDUzODU5NX0.cpGVwPNOWaShEDzhyIu18QSczDo6XHhhZi0gT3uQ5dk';
+
+if (!SUPABASE_URL) {
+  throw new Error('supabaseUrl is required.');
+}
+
+if (!SUPABASE_ANON_KEY) {
+  throw new Error('supabaseKey is required.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
