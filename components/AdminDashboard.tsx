@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { mockCandidates, mockVoters, addCandidate, deleteCandidate } from '../lib/supabase';
-import { Candidate, POSITIONS_ORDER } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
+import { mockCandidates, mockVoters, addCandidate, deleteCandidate, addVoter, deleteVoter, bulkUploadVoters } from '../lib/supabase';
+import { Candidate, Voter, POSITIONS_ORDER } from '../types';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'canvassing' | 'candidates';
+type Tab = 'canvassing' | 'candidates' | 'voters';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('canvassing');
@@ -20,6 +20,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   
+  // Voters State
+  const [voterList, setVoterList] = useState<Voter[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+
   // Form State
   const [formData, setFormData] = useState<Partial<Candidate>>({
     full_name: '',
@@ -27,14 +31,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     partylist: '',
     grade_level: undefined,
   });
+  const [voterForm, setVoterForm] = useState({
+    lrn: '',
+    first_name: '',
+    last_name: '',
+    grade_level: 7
+  });
+  
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const fetchData = () => {
     // MOCK DATA GENERATION - In real app, this is a Supabase subscription or fetch
     const voteCounts: Record<string, number> = {};
     
-    // Refresh local candidate list from source
+    // Refresh local lists from source
     setCandidateList([...mockCandidates]);
+    setVoterList([...mockVoters]);
 
     // Simulate random votes for demo visualization
     mockCandidates.forEach(c => {
@@ -82,10 +94,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
     setData(newData);
 
-    // Mock Turnout
+    // Turnout Calculation based on actual voter list
+    const votedCount = mockVoters.filter(v => v.has_voted).length;
     setTurnout({
-      voted: Math.floor(mockVoters.length * 0.75) + 250, // Fake number
-      total: 500
+      voted: votedCount,
+      total: mockVoters.length
     });
   };
 
@@ -136,14 +149,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if(window.confirm("Are you sure you want to delete this candidate?")) {
-      await deleteCandidate(id);
+  const handleAddVoter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAdding(true);
+    try {
+      await addVoter(voterForm);
+      setVoterForm({ lrn: '', first_name: '', last_name: '', grade_level: 7 });
+      fetchData();
+      alert("Voter registered successfully.");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if(window.confirm("Simulate importing 50 students from CSV?")) {
+      setIsImporting(true);
+      await bulkUploadVoters(50);
+      setIsImporting(false);
       fetchData();
     }
   };
 
-  const percentage = Math.round((turnout.voted / turnout.total) * 100);
+  const handleDownloadTemplate = () => {
+    const csvContent = "lrn,first_name,last_name,grade_level\n123456789012,Juan,Dela Cruz,10\n109876543210,Maria,Clara,9";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "voter_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDelete = async (id: string, type: 'candidate' | 'voter') => {
+    if(window.confirm(`Are you sure you want to delete this ${type}?`)) {
+      if (type === 'candidate') await deleteCandidate(id);
+      else await deleteVoter(id);
+      fetchData();
+    }
+  };
+
+  const percentage = turnout.total > 0 ? Math.round((turnout.voted / turnout.total) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -156,11 +206,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                <p className="text-xs text-slate-400">RMCHS SSLG Election</p>
             </div>
             
-            <nav className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg ml-8">
+            <nav className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg ml-8 overflow-x-auto">
               <button 
                 onClick={() => setActiveTab('canvassing')}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2",
+                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
                   activeTab === 'canvassing' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
                 )}
               >
@@ -169,11 +219,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <button 
                 onClick={() => setActiveTab('candidates')}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2",
+                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
                   activeTab === 'candidates' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
                 )}
               >
                 <Users size={16} /> Manage Candidates
+              </button>
+              <button 
+                onClick={() => setActiveTab('voters')}
+                className={cn(
+                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeTab === 'voters' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                )}
+              >
+                <UserPlus size={16} /> Manage Voters
               </button>
             </nav>
           </div>
@@ -367,7 +426,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                            <td className="px-6 py-4">{candidate.partylist}</td>
                            <td className="px-6 py-4 text-right">
                              <button 
-                               onClick={() => handleDelete(candidate.id)}
+                               onClick={() => handleDelete(candidate.id, 'candidate')}
                                className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"
                                title="Delete Candidate"
                              >
@@ -389,6 +448,173 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                </div>
             </div>
 
+          </div>
+        )}
+
+        {/* === TAB: VOTERS === */}
+        {activeTab === 'voters' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+             {/* Add Voter Form */}
+             <div className="lg:col-span-1 space-y-6">
+                <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 sticky top-24">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <UserPlus size={20} className="text-green-500" /> Register Voter
+                  </h2>
+                  
+                  <form onSubmit={handleAddVoter} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-400">LRN (12 Digits)</label>
+                      <input 
+                        type="text" 
+                        required
+                        maxLength={12}
+                        value={voterForm.lrn}
+                        onChange={e => setVoterForm({...voterForm, lrn: e.target.value.replace(/\D/g, '')})}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none font-mono"
+                        placeholder="000000000000"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-400">First Name</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={voterForm.first_name}
+                          onChange={e => setVoterForm({...voterForm, first_name: e.target.value})}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-400">Last Name</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={voterForm.last_name}
+                          onChange={e => setVoterForm({...voterForm, last_name: e.target.value})}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-400">Grade Level</label>
+                      <select 
+                        required
+                        value={voterForm.grade_level}
+                        onChange={e => setVoterForm({...voterForm, grade_level: Number(e.target.value)})}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                      >
+                         {Array.from({length: 6}, (_, i) => i + 7).map(g => (
+                           <option key={g} value={g}>Grade {g}</option>
+                         ))}
+                      </select>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isAdding}
+                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg shadow-green-600/20 disabled:opacity-50"
+                    >
+                      {isAdding ? 'Saving...' : 'Register Student'}
+                    </button>
+                  </form>
+
+                  <div className="mt-6 pt-6 border-t border-slate-700 space-y-3">
+                    <button 
+                      onClick={handleBulkImport}
+                      disabled={isImporting}
+                      className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg transition flex items-center justify-center gap-2 border border-slate-600"
+                    >
+                      {isImporting ? (
+                         <span className="animate-spin">⏳</span>
+                      ) : (
+                         <FileSpreadsheet size={18} />
+                      )}
+                      Import CSV / Excel
+                    </button>
+                    
+                    <button 
+                      onClick={handleDownloadTemplate}
+                      className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 font-medium py-2 rounded-lg transition flex items-center justify-center gap-2 text-xs"
+                    >
+                      <Download size={14} /> Download CSV Template
+                    </button>
+
+                    <p className="text-[10px] text-slate-500 text-center">
+                      Simulates uploading a file with 50 students
+                    </p>
+                  </div>
+                </div>
+             </div>
+
+             {/* Voter List */}
+             <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold">Registered Voters</h2>
+                  <span className="text-sm bg-slate-800 px-3 py-1 rounded-full text-slate-400 border border-slate-700">
+                    Total: {voterList.length}
+                  </span>
+                </div>
+                
+                <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden max-h-[600px] overflow-y-auto">
+                   <table className="w-full text-left text-sm text-slate-400">
+                     <thead className="bg-slate-900/50 text-slate-200 uppercase text-xs font-semibold sticky top-0 z-10">
+                       <tr>
+                         <th className="px-6 py-4">LRN</th>
+                         <th className="px-6 py-4">Name</th>
+                         <th className="px-6 py-4">Grade</th>
+                         <th className="px-6 py-4 text-center">Passcode</th>
+                         <th className="px-6 py-4 text-center">Status</th>
+                         <th className="px-6 py-4 text-right">Actions</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-700">
+                       {voterList.map((voter) => (
+                         <tr key={voter.id} className="hover:bg-slate-700/30 transition">
+                           <td className="px-6 py-4 font-mono text-slate-300">{voter.lrn}</td>
+                           <td className="px-6 py-4 font-medium text-white">
+                             {voter.last_name}, {voter.first_name}
+                           </td>
+                           <td className="px-6 py-4">Gr. {voter.grade_level}</td>
+                           <td className="px-6 py-4 text-center font-mono text-xs bg-slate-900/30 rounded py-1 select-all">
+                             {voter.passcode}
+                           </td>
+                           <td className="px-6 py-4 text-center">
+                             {voter.has_voted ? (
+                               <span className="inline-flex items-center gap-1 text-green-400 text-xs font-bold uppercase">
+                                 <CheckCircle2 size={14} /> Voted
+                               </span>
+                             ) : (
+                               <span className="inline-flex items-center gap-1 text-slate-500 text-xs font-bold uppercase">
+                                 <XCircle size={14} /> Pending
+                               </span>
+                             )}
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                             <button 
+                               onClick={() => handleDelete(voter.id, 'voter')}
+                               className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"
+                               title="Remove Voter"
+                             >
+                               <Trash2 size={16} />
+                             </button>
+                           </td>
+                         </tr>
+                       ))}
+                       {voterList.length === 0 && (
+                         <tr>
+                           <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                             No voters registered yet. Use the form or import to add students.
+                           </td>
+                         </tr>
+                       )}
+                     </tbody>
+                   </table>
+                 </div>
+             </div>
           </div>
         )}
 
