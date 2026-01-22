@@ -83,7 +83,7 @@ const App: React.FC = () => {
             </p>
             <button 
               onClick={handleLogout}
-              className="px-8 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition"
+              className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition"
             >
               Back to Login
             </button>

@@ -275,86 +275,98 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const percentage = turnout.total > 0 ? Math.round((turnout.voted / turnout.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-slate-900 text-white font-sans">
       {/* Top Navigation Bar */}
-      <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div>
-               <h1 className="text-xl font-bold tracking-tight">Admin Portal</h1>
-               <p className="text-xs text-slate-400">RMCHS SSLG Election</p>
+      <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3">
+            
+            {/* Logo & Mobile Logout Row */}
+            <div className="w-full sm:w-auto flex items-center justify-between">
+              <div>
+                 <h1 className="text-lg sm:text-xl font-bold tracking-tight">Admin Portal</h1>
+                 <p className="text-[10px] sm:text-xs text-slate-400">RMCHS SSLG Election</p>
+              </div>
+              <button 
+                onClick={onLogout} 
+                className="sm:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition"
+              >
+                <LogOut size={20} />
+              </button>
             </div>
             
-            <nav className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg ml-8 overflow-x-auto">
+            {/* Navigation Tabs */}
+            <nav className="w-full sm:w-auto flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg overflow-x-auto no-scrollbar">
               <button 
                 onClick={() => setActiveTab('canvassing')}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                  activeTab === 'canvassing' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  "flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap",
+                  activeTab === 'canvassing' ? "bg-green-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
                 )}
               >
-                <BarChart3 size={16} /> Live Canvassing
+                <BarChart3 size={16} /> <span className="inline">Canvassing</span>
               </button>
               <button 
                 onClick={() => setActiveTab('candidates')}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                  activeTab === 'candidates' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  "flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap",
+                  activeTab === 'candidates' ? "bg-green-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
                 )}
               >
-                <Users size={16} /> Manage Candidates
+                <Users size={16} /> Candidates
               </button>
               <button 
                 onClick={() => setActiveTab('voters')}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap",
-                  activeTab === 'voters' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  "flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 whitespace-nowrap",
+                  activeTab === 'voters' ? "bg-green-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"
                 )}
               >
-                <UserPlus size={16} /> Manage Voters
+                <UserPlus size={16} /> Voters
               </button>
             </nav>
-          </div>
 
-          <button onClick={onLogout} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
-            <LogOut size={16} /> Logout
-          </button>
+            {/* Desktop Logout */}
+            <button onClick={onLogout} className="hidden sm:flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
         
         {/* === TAB: CANVASSING === */}
         {activeTab === 'canvassing' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Turnout Widget */}
-            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+            <div className="bg-slate-800 rounded-2xl p-4 sm:p-6 border border-slate-700">
               <div className="flex justify-between items-end mb-4">
-                <h2 className="text-xl font-semibold">Voter Turnout</h2>
+                <h2 className="text-lg sm:text-xl font-semibold">Voter Turnout</h2>
                 <div className="text-right">
-                  <span className="text-4xl font-bold text-blue-400">{percentage}%</span>
-                  <p className="text-sm text-slate-400">{turnout.voted} / {turnout.total} Registered</p>
+                  <span className="text-3xl sm:text-4xl font-bold text-green-400">{percentage}%</span>
+                  <p className="text-xs sm:text-sm text-slate-400">{turnout.voted} / {turnout.total} Registered</p>
                 </div>
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden">
+              <div className="w-full bg-slate-700 rounded-full h-3 sm:h-4 overflow-hidden">
                 <div 
-                  className="bg-blue-500 h-full rounded-full transition-all duration-1000" 
+                  className="bg-green-500 h-full rounded-full transition-all duration-1000" 
                   style={{ width: `${percentage}%` }}
                 />
               </div>
             </div>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {Object.keys(data).length === 0 && (
-                <div className="col-span-2 text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                <div className="col-span-1 md:col-span-2 text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                   {isLoadingData ? "Loading results..." : "No candidates or votes yet."}
                 </div>
               )}
               {Object.entries(data).map(([pos, chartData]) => (
-                <div key={pos} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-slate-200">{pos}</h3>
+                <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-200">{pos}</h3>
                     <RefreshCw size={14} className={cn("text-slate-500", isLoadingData && "animate-spin")} />
                   </div>
                   <div className="h-64 w-full">
@@ -367,7 +379,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
                           cursor={{ fill: '#334155', opacity: 0.4 }}
                         />
-                        <Bar dataKey="votes" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                        <Bar dataKey="votes" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={20} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -379,13 +391,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* === TAB: CANDIDATES === */}
         {activeTab === 'candidates' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             {/* Add Candidate Form */}
             <div className="lg:col-span-1">
-              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 sticky top-24">
+              <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 sm:p-6 sticky top-24">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Plus size={20} className="text-blue-500" /> Encode Candidate
+                  <Plus size={20} className="text-green-500" /> Encode Candidate
                 </h2>
                 
                 <form onSubmit={handleAddCandidate} className="space-y-4">
@@ -396,7 +408,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       required
                       value={formData.full_name}
                       onChange={e => setFormData({...formData, full_name: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
                       placeholder="e.g. Juan Dela Cruz"
                     />
                   </div>
@@ -406,7 +418,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <select 
                       value={formData.position}
                       onChange={e => setFormData({...formData, position: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
                     >
                       {POSITIONS_ORDER.map(pos => (
                         <option key={pos} value={pos}>{pos}</option>
@@ -421,7 +433,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         required
                         value={formData.grade_level || ''}
                         onChange={e => setFormData({...formData, grade_level: Number(e.target.value)})}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
                       >
                          <option value="" disabled>Select Grade</option>
                          {Array.from({length: 12}, (_, i) => i + 1).map(g => (
@@ -437,14 +449,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       type="text" 
                       value={formData.partylist}
                       onChange={e => setFormData({...formData, partylist: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
                       placeholder="e.g. Maka-Tao Party"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-400">Candidate Photo</label>
-                    <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center hover:border-blue-500 transition-colors cursor-pointer relative">
+                    <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center hover:border-green-500 transition-colors cursor-pointer relative">
                       <input 
                         type="file" 
                         accept="image/*"
@@ -470,7 +482,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <button 
                     type="submit" 
                     disabled={isAdding}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                    className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg shadow-green-600/20 disabled:opacity-50"
                   >
                     {isAdding ? 'Saving...' : 'Enroll Candidate'}
                   </button>
@@ -483,32 +495,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                <h2 className="text-lg font-bold">Enrolled Candidates</h2>
                <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
                  <div className="overflow-x-auto">
-                   <table className="w-full text-left text-sm text-slate-400">
+                   <table className="w-full text-left text-sm text-slate-400 whitespace-nowrap">
                      <thead className="bg-slate-900/50 text-slate-200 uppercase text-xs font-semibold">
                        <tr>
-                         <th className="px-6 py-4">Candidate</th>
-                         <th className="px-6 py-4">Position</th>
-                         <th className="px-6 py-4">Partylist</th>
-                         <th className="px-6 py-4 text-right">Actions</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">Candidate</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">Position</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">Partylist</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Actions</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-700">
                        {candidateList.map((candidate) => (
                          <tr key={candidate.id} className="hover:bg-slate-700/30 transition">
-                           <td className="px-6 py-4 flex items-center gap-3">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 flex items-center gap-3">
                              <img 
                                src={candidate.image_url || DEFAULT_PLACEHOLDER} 
                                alt={candidate.full_name} 
-                               className="w-10 h-10 rounded-full object-cover bg-slate-700"
+                               className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover bg-slate-700"
                              />
                              <span className="font-medium text-white">{candidate.full_name}</span>
                            </td>
-                           <td className="px-6 py-4">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4">
                              {candidate.position}
                              {candidate.grade_level && <span className="ml-2 text-xs bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">Gr. {candidate.grade_level}</span>}
                            </td>
-                           <td className="px-6 py-4">{candidate.partylist}</td>
-                           <td className="px-6 py-4 text-right">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4">{candidate.partylist}</td>
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 text-right">
                              <button 
                                onClick={() => handleDelete(candidate.id, 'candidate')}
                                className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"
@@ -537,11 +549,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* === TAB: VOTERS === */}
         {activeTab === 'voters' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
              {/* Add Voter Form */}
              <div className="lg:col-span-1 space-y-6">
-                <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 sticky top-24">
+                <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 sm:p-6 sticky top-24">
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <UserPlus size={20} className="text-green-500" /> Register Voter
                   </h2>
@@ -646,35 +658,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
              <div className="lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold">Registered Voters</h2>
-                  <span className="text-sm bg-slate-800 px-3 py-1 rounded-full text-slate-400 border border-slate-700">
+                  <span className="text-xs sm:text-sm bg-slate-800 px-3 py-1 rounded-full text-slate-400 border border-slate-700">
                     Total: {voterList.length}
                   </span>
                 </div>
                 
                 <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden max-h-[600px] overflow-y-auto">
-                   <table className="w-full text-left text-sm text-slate-400">
+                   <table className="w-full text-left text-sm text-slate-400 whitespace-nowrap">
                      <thead className="bg-slate-900/50 text-slate-200 uppercase text-xs font-semibold sticky top-0 z-10">
                        <tr>
-                         <th className="px-6 py-4">LRN</th>
-                         <th className="px-6 py-4">Name</th>
-                         <th className="px-6 py-4">Grade</th>
-                         <th className="px-6 py-4 text-center">Passcode</th>
-                         <th className="px-6 py-4 text-center">Status</th>
-                         <th className="px-6 py-4 text-right">Actions</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">LRN</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">Name</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4">Grade</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4 text-center">Passcode</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4 text-center">Status</th>
+                         <th className="px-4 py-3 sm:px-6 sm:py-4 text-right">Actions</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-700">
                        {voterList.map((voter) => (
                          <tr key={voter.id} className="hover:bg-slate-700/30 transition">
-                           <td className="px-6 py-4 font-mono text-slate-300">{voter.lrn}</td>
-                           <td className="px-6 py-4 font-medium text-white">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 font-mono text-slate-300">{voter.lrn}</td>
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 font-medium text-white">
                              {voter.last_name}, {voter.first_name}
                            </td>
-                           <td className="px-6 py-4">Gr. {voter.grade_level}</td>
-                           <td className="px-6 py-4 text-center font-mono text-xs bg-slate-900/30 rounded py-1 select-all">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4">Gr. {voter.grade_level}</td>
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 text-center font-mono text-xs bg-slate-900/30 rounded py-1 select-all">
                              {voter.passcode}
                            </td>
-                           <td className="px-6 py-4 text-center">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 text-center">
                              {voter.has_voted ? (
                                <span className="inline-flex items-center gap-1 text-green-400 text-xs font-bold uppercase">
                                  <CheckCircle2 size={14} /> Voted
@@ -685,7 +697,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                </span>
                              )}
                            </td>
-                           <td className="px-6 py-4 text-right">
+                           <td className="px-4 py-3 sm:px-6 sm:py-4 text-right">
                              <button 
                                onClick={() => handleDelete(voter.id, 'voter')}
                                className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"

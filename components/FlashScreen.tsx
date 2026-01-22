@@ -23,7 +23,7 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, onComplete }) => {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 20, opacity: 0.05 }}
         transition={{ duration: 1.5, ease: "easeOut" }}
-        className="absolute w-64 h-64 bg-blue-500 rounded-full"
+        className="absolute w-64 h-64 bg-green-500 rounded-full"
       />
 
       <div className="flex items-center gap-8 md:gap-16 z-10 relative">
@@ -59,13 +59,13 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, onComplete }) => {
         transition={{ delay: 1, duration: 0.8 }}
         className="mt-12 text-center z-10"
       >
-        <h2 className="text-3xl md:text-5xl font-black text-blue-900 tracking-tight">
+        <h2 className="text-3xl md:text-5xl font-black text-green-800 tracking-tight">
           WELCOME
         </h2>
         <h3 className="text-xl md:text-2xl font-bold text-gray-700 mt-2">
           {voter.first_name} {voter.last_name}
         </h3>
-        <p className="text-blue-600 font-medium mt-1">Grade {voter.grade_level}</p>
+        <p className="text-green-600 font-medium mt-1">Grade {voter.grade_level}</p>
         
         <motion.div 
           initial={{ width: 0 }}

@@ -73,7 +73,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
       >
-        <div className="bg-blue-900 p-8 text-center relative overflow-hidden">
+        <div className="bg-green-600 p-8 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
             <img 
               src={SCHOOL_LOGO_URL} 
@@ -81,7 +81,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
               className="w-20 h-20 mx-auto rounded-full border-4 border-white shadow-lg relative z-10 bg-white object-contain"
             />
             <h1 className="mt-4 text-2xl font-bold text-white relative z-10">SSLG Voting System</h1>
-            <p className="text-blue-200 text-sm relative z-10">Ramon Magsaysay (Cubao) High School</p>
+            <p className="text-green-100 text-sm relative z-10">Ramon Magsaysay (Cubao) High School</p>
         </div>
 
         <div className="p-8">
@@ -95,7 +95,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
                 maxLength={12}
                 value={lrn}
                 onChange={(e) => setLrn(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none text-lg tracking-widest text-center font-mono"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors outline-none text-lg tracking-widest text-center font-mono"
                 placeholder="000000000000"
                 required
               />
@@ -109,7 +109,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
                 type="text"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none text-lg text-center tracking-widest font-mono uppercase"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors outline-none text-lg text-center tracking-widest font-mono uppercase"
                 placeholder="XXXXXAA"
                 required
               />
@@ -133,7 +133,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
               type="submit"
               disabled={loading}
               className={cn(
-                "w-full bg-blue-900 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all flex items-center justify-center gap-2 active:scale-[0.98]",
+                "w-full bg-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]",
                 loading && "opacity-70 cursor-not-allowed"
               )}
             >

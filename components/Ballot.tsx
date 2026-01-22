@@ -90,7 +90,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-           <div className="w-10 h-10 border-4 border-blue-900 border-t-transparent rounded-full animate-spin" />
+           <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
            <p className="text-gray-500 text-sm animate-pulse">Loading Candidates...</p>
         </div>
       </div>
@@ -103,7 +103,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-blue-900">Official Ballot</h1>
+            <h1 className="text-xl font-bold text-green-800">Official Ballot</h1>
             <p className="text-xs text-gray-500">Logged in as: <span className="font-semibold">{voter.lrn}</span></p>
           </div>
           <button 
@@ -124,9 +124,9 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
             key={position} 
             className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
           >
-            <div className="bg-blue-50/50 px-6 py-4 border-b border-blue-100">
-              <h2 className="text-lg font-bold text-blue-900 uppercase tracking-wide">{position}</h2>
-              <p className="text-sm text-blue-600">Select one (1)</p>
+            <div className="bg-green-50/50 px-6 py-4 border-b border-green-100">
+              <h2 className="text-lg font-bold text-green-800 uppercase tracking-wide">{position}</h2>
+              <p className="text-sm text-green-600">Select one (1)</p>
             </div>
 
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -139,8 +139,8 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                     className={cn(
                       "cursor-pointer group relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200",
                       isSelected 
-                        ? "border-blue-600 bg-blue-50 shadow-md" 
-                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-green-500 bg-green-50 shadow-md" 
+                        : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
                     )}
                   >
                     <div className="relative shrink-0 group/image">
@@ -160,13 +160,13 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                       </div>
                       
                       {isSelected && (
-                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-0.5 z-10 pointer-events-none">
-                          <CheckCircle2 size={16} fill="currentColor" className="text-blue-600 bg-white rounded-full" />
+                        <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5 z-10 pointer-events-none">
+                          <CheckCircle2 size={16} fill="currentColor" className="text-green-500 bg-white rounded-full" />
                         </div>
                       )}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{candidate.full_name}</h3>
+                      <h3 className="font-bold text-gray-900 group-hover:text-green-700 transition-colors">{candidate.full_name}</h3>
                       <p className="text-sm text-gray-500">{candidate.partylist || "Independent"}</p>
                     </div>
                   </div>
@@ -201,7 +201,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
           className={cn(
             "flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg shadow-xl transition-all transform",
             isBallotComplete 
-              ? "bg-blue-900 text-white hover:scale-105 hover:bg-blue-800" 
+              ? "bg-green-600 text-white hover:scale-105 hover:bg-green-700" 
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           )}
         >
@@ -219,11 +219,11 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
             >
-              <div className="bg-blue-900 p-6 text-white flex items-center gap-4">
+              <div className="bg-green-600 p-6 text-white flex items-center gap-4">
                 <AlertTriangle className="text-yellow-400" size={28} />
                 <div>
                   <h3 className="text-xl font-bold">Confirm Votes</h3>
-                  <p className="text-blue-200 text-sm">Action cannot be undone.</p>
+                  <p className="text-green-100 text-sm">Action cannot be undone.</p>
                 </div>
               </div>
               
@@ -236,7 +236,7 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
                   return (
                     <div key={pos} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
                       <span className="text-sm font-medium text-gray-500 uppercase">{pos}</span>
-                      <span className={cn("font-bold", isAbstain ? "text-gray-400 italic" : "text-blue-900")}>
+                      <span className={cn("font-bold", isAbstain ? "text-gray-400 italic" : "text-green-800")}>
                         {isAbstain ? "Abstained" : candidate?.full_name}
                       </span>
                     </div>
