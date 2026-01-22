@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Voter, Candidate, VoteSelection } from '../types';
+import { Voter, Candidate, VoteSelection, Vote } from '../types';
 import { generatePasscode } from './utils';
 
 // Access environment variables
@@ -155,7 +155,7 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
-// 10. ADMIN: Get Vote Counts
+// 10. ADMIN: Get Vote Counts (Legacy simple count)
 export const getVoteCounts = async (): Promise<Record<string, number>> => {
   const { data, error } = await supabase
     .from('votes')
@@ -177,7 +177,21 @@ export const getVoteCounts = async (): Promise<Record<string, number>> => {
   return counts;
 };
 
-// 11. STORAGE: Upload Image
+// 11. ADMIN: Get All Votes Raw (For detailed analytics/print)
+export const getAllVotes = async (): Promise<Vote[]> => {
+  const { data, error } = await supabase
+    .from('votes')
+    .select('*');
+
+  if (error) {
+    console.error("Error fetching all votes:", error);
+    return [];
+  }
+  
+  return data as Vote[];
+};
+
+// 12. STORAGE: Upload Image
 export const uploadCandidatePhoto = async (file: File): Promise<string> => {
   const fileExt = file.name.split('.').pop();
   // Use timestamp and random string to ensure unique filenames
