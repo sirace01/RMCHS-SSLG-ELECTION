@@ -17,6 +17,10 @@ if (!SUPABASE_ANON_KEY) {
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --- DEFAULTS ---
+const DEFAULT_ADMIN_LRN = '111111111111';
+const DEFAULT_ADMIN_PASS = 'SSLGRMCHS@2026';
+
 // --- API FUNCTIONS ---
 
 // 1. LOGIN: Fetch voter by LRN
@@ -275,6 +279,32 @@ export const setSchoolYear = async (year: string): Promise<void> => {
   const { error } = await supabase
     .from('config')
     .upsert({ key: 'school_year', value: year });
+  
+  if (error) throw error;
+};
+
+// 17. AUTH: Verify Admin Credentials
+export const verifyAdminCredentials = async (lrn: string, passcode: string): Promise<boolean> => {
+  try {
+    const { data: lrnData } = await supabase.from('config').select('value').eq('key', 'admin_lrn').single();
+    const { data: passData } = await supabase.from('config').select('value').eq('key', 'admin_password').single();
+    
+    // Use DB value or fall back to default
+    const correctLrn = lrnData?.value || DEFAULT_ADMIN_LRN;
+    const correctPass = passData?.value || DEFAULT_ADMIN_PASS;
+
+    return lrn === correctLrn && passcode === correctPass;
+  } catch (e) {
+    // If DB fails, fallback to default
+    return lrn === DEFAULT_ADMIN_LRN && passcode === DEFAULT_ADMIN_PASS;
+  }
+};
+
+// 18. AUTH: Update Admin Password
+export const updateAdminPassword = async (newPassword: string): Promise<void> => {
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key: 'admin_password', value: newPassword });
   
   if (error) throw error;
 };

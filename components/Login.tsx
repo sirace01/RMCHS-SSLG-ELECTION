@@ -2,18 +2,13 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
-import { getVoterByLrn, getElectionStatus } from '../lib/supabase'; // Import real function
+import { getVoterByLrn, getElectionStatus, verifyAdminCredentials } from '../lib/supabase'; // Import real function
 import { Voter, SCHOOL_LOGO_URL } from '../types';
 
 interface LoginProps {
   onLoginSuccess: (voter: Voter) => void;
   onAdminLogin: () => void;
 }
-
-// --- ADMIN CREDENTIALS ---
-// CUSTOMIZE HERE: Change these values to secure your admin dashboard
-const ADMIN_LRN = '111111111111';
-const ADMIN_PASSCODE = 'SSLGRMCHS@2026';
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
   const [lrn, setLrn] = useState('');
@@ -27,9 +22,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
     setLoading(true);
 
     try {
-      // 1. Check for Admin Credentials (Backdoor)
-      // Note: Passcode input forces UpperCase, so ensure ADMIN_PASSCODE is uppercase in code or compatible
-      if (lrn === ADMIN_LRN && passcode === ADMIN_PASSCODE) {
+      // 1. Check for Admin Credentials
+      const isAdmin = await verifyAdminCredentials(lrn, passcode);
+      if (isAdmin) {
         onAdminLogin();
         return;
       }

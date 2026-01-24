@@ -13,10 +13,11 @@ import {
   getElectionStatus,
   setElectionStatus,
   getSchoolYear,
-  setSchoolYear
+  setSchoolYear,
+  updateAdminPassword
 } from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER, SCHOOL_LOGO_URL, SSLG_LOGO_URL } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save } from 'lucide-react';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
@@ -66,6 +67,9 @@ CREATE TABLE IF NOT EXISTS config (
 -- 4. Seed Default Values
 INSERT INTO config (key, value) VALUES ('election_status', 'OPEN') ON CONFLICT DO NOTHING;
 INSERT INTO config (key, value) VALUES ('school_year', '2024-2025') ON CONFLICT DO NOTHING;
+-- Default Admin Credentials (LRN: 111111111111, Pass: SSLGRMCHS@2026)
+INSERT INTO config (key, value) VALUES ('admin_lrn', '111111111111') ON CONFLICT DO NOTHING;
+INSERT INTO config (key, value) VALUES ('admin_password', 'SSLGRMCHS@2026') ON CONFLICT DO NOTHING;
 
 -- 5. Enable RLS and Grant Permissions
 ALTER TABLE config ENABLE ROW LEVEL SECURITY;
@@ -94,6 +98,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [showSqlHelp, setShowSqlHelp] = useState(false);
   const [schoolYear, setSchoolYearState] = useState('2024-2025');
   const [isSavingYear, setIsSavingYear] = useState(false);
+
+  // Password Change State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Candidates State
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
@@ -291,6 +301,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      await updateAdminPassword(newPassword);
+      alert("Admin password updated successfully.");
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e: any) {
+      alert("Failed to update password: " + e.message);
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const handleCopySql = () => {
     navigator.clipboard.writeText(SETUP_SQL_SCRIPT);
     alert("SQL Code copied to clipboard! Now paste it in Supabase SQL Editor.");
@@ -480,6 +515,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                    {isTogglingStatus ? <RefreshCw size={14} className="animate-spin" /> : (isElectionOpen ? <Unlock size={14} /> : <Lock size={14} />)}
                    {isElectionOpen ? "Election Open" : "Election Closed"}
                  </button>
+                 
+                 <button 
+                   onClick={() => setShowPasswordModal(true)}
+                   className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition border border-slate-600"
+                 >
+                   <Key size={14} /> Password
+                 </button>
+
                  <button onClick={onLogout} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
                    <LogOut size={16} /> Logout
                  </button>
@@ -491,12 +534,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
           
           {/* Mobile Election Status Toggle */}
-          <div className="sm:hidden mb-4 flex justify-center">
+          <div className="sm:hidden mb-4 grid grid-cols-2 gap-2">
              <button
                 onClick={handleToggleElection}
                 disabled={isTogglingStatus}
                 className={cn(
-                  "w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all border",
+                  "col-span-2 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all border",
                   isElectionOpen 
                     ? "bg-green-900/30 text-green-400 border-green-700" 
                     : "bg-red-900/30 text-red-400 border-red-700"
@@ -505,6 +548,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 {isTogglingStatus ? <RefreshCw size={16} className="animate-spin" /> : (isElectionOpen ? <Unlock size={16} /> : <Lock size={16} />)}
                 {isElectionOpen ? "Election is OPEN (Tap to Close)" : "Election is CLOSED (Tap to Open)"}
               </button>
+             <button 
+                onClick={() => setShowPasswordModal(true)}
+                className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg py-2 font-bold text-sm"
+             >
+                <Key size={16} /> Password
+             </button>
+             <button 
+                onClick={onLogout}
+                className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 text-red-400 rounded-lg py-2 font-bold text-sm"
+             >
+                <LogOut size={16} /> Logout
+             </button>
           </div>
 
           {/* === TAB: CANVASSING === */}
@@ -896,117 +951,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
       </div>
 
-      {/* --- PRINT VIEW --- */}
-      <div className="hidden print:block bg-white text-black p-8 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 pb-4 border-b-2 border-green-800">
-          <img src={SCHOOL_LOGO_URL} className="w-20 h-20 object-contain rounded-full" alt="School Logo" />
-          <div className="text-center">
-             <h1 className="text-2xl font-bold uppercase text-green-900">Official Election Returns</h1>
-             <p className="font-semibold text-gray-700">SSLG Elections {schoolYear}</p>
-             <p className="text-sm text-gray-500">Ramon Magsaysay (Cubao) High School</p>
-             <p className="text-xs text-gray-400 mt-1">Generated: {lastUpdated.toLocaleString()}</p>
-          </div>
-          <img src={SSLG_LOGO_URL} className="w-20 h-20 object-contain rounded-full" alt="SSLG Logo" />
-        </div>
-
-        {/* 1. WINNERS LIST */}
-        <div className="mb-10 break-inside-avoid">
-           <h2 className="text-xl font-bold text-white bg-green-800 px-4 py-2 mb-4 rounded-sm print:bg-green-800 print:text-white uppercase tracking-wider">
-             Official List of Winners
-           </h2>
-           <div className="grid grid-cols-1 gap-2">
-              <div className="grid grid-cols-12 gap-2 font-bold text-xs uppercase bg-gray-100 p-2 border-b-2 border-gray-300">
-                 <div className="col-span-4">Position</div>
-                 <div className="col-span-4">Elected Officer</div>
-                 <div className="col-span-2">Partylist</div>
-                 <div className="col-span-2 text-right">Total Votes</div>
+      {/* CHANGE PASSWORD MODAL */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+           <div className="bg-slate-900 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl flex flex-col">
+              <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-2xl">
+                 <div className="flex items-center gap-3">
+                   <Shield className="text-green-500" size={24} />
+                   <h3 className="text-lg font-bold text-white">Change Admin Password</h3>
+                 </div>
+                 <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-white">
+                   <XCircle size={24} />
+                 </button>
               </div>
-              {winners.map((win, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 text-sm p-2 border-b border-gray-200 items-center">
-                   <div className="col-span-4 font-bold text-gray-800 uppercase">{win.position}</div>
-                   <div className="col-span-4 font-bold text-green-800 flex items-center gap-2">
-                      {win.candidate ? (
-                         <>
-                           <img src={win.candidate.image || DEFAULT_PLACEHOLDER} className="w-8 h-8 rounded-full border border-gray-200 object-cover" />
-                           {win.candidate.name}
-                         </>
-                      ) : (
-                         <span className="text-gray-400 italic">No Candidate</span>
-                      )}
-                   </div>
-                   <div className="col-span-2 text-xs text-gray-600">{win.candidate?.partylist || "-"}</div>
-                   <div className="col-span-2 text-right font-mono font-bold">{win.candidate?.votes || 0}</div>
-                </div>
-              ))}
+              <div className="p-6 bg-slate-950">
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-400">New Password</label>
+                    <input 
+                      type="password" 
+                      required
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1"
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-400">Confirm Password</label>
+                    <input 
+                      type="password" 
+                      required
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <button 
+                      type="submit" 
+                      disabled={isUpdatingPassword}
+                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-50"
+                    >
+                      {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                    </button>
+                  </div>
+                </form>
+              </div>
            </div>
         </div>
-
-        {/* 2. DETAILED BREAKDOWN & GRAPHS */}
-        <div className="break-inside-avoid">
-           <h2 className="text-xl font-bold text-white bg-gray-800 px-4 py-2 mb-6 rounded-sm print:bg-gray-800 print:text-white uppercase tracking-wider">
-             Canvassing Report & Demographics
-           </h2>
-
-           <div className="space-y-8">
-             {Object.entries(data).map(([pos, candidates]: [string, ChartDataPoint[]]) => (
-               <div key={pos} className="break-inside-avoid border rounded-lg p-4 border-gray-300">
-                 <h3 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4 uppercase">{pos}</h3>
-                 
-                 {candidates.map((c: ChartDataPoint, i: number) => {
-                    const maxVotes = candidates[0]?.votes || 1; // Avoid div by zero
-                    const percentage = Math.round((c.votes / (turnout.voted || 1)) * 100);
-                    const barWidth = Math.max(0, Math.min(100, (c.votes / maxVotes) * 100));
-
-                    return (
-                      <div key={c.id} className="mb-4 last:mb-0">
-                         <div className="flex justify-between items-end mb-1">
-                            <div className="flex items-center gap-2">
-                               <span className="font-bold text-sm w-6 text-gray-400">#{i+1}</span>
-                               <span className="font-bold text-sm text-gray-800">{c.name}</span>
-                               <span className="text-xs text-gray-500">({c.partylist})</span>
-                            </div>
-                            <div className="text-sm font-bold">
-                               {c.votes} <span className="text-xs font-normal text-gray-500">votes</span>
-                            </div>
-                         </div>
-                         
-                         {/* Main Result Bar */}
-                         <div className="w-full bg-gray-100 h-4 rounded-sm overflow-hidden mb-2 border border-gray-200">
-                            <div 
-                              className="h-full bg-green-600 print:bg-green-600 print:print-color-adjust-exact" 
-                              style={{ width: `${barWidth}%` }}
-                            />
-                         </div>
-
-                         {/* Demographic Breakdown (Votes per Grade) */}
-                         <div className="flex items-center gap-2 pl-8">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase w-16">Grade Breakdown:</span>
-                            <div className="flex-1 flex gap-1 h-3">
-                              {GRADE_LEVELS.map(grade => {
-                                const gVotes = c.grades[grade] || 0;
-                                return (
-                                  <div key={grade} className="flex items-center bg-gray-50 border border-gray-200 rounded px-1.5 gap-1">
-                                     <span className="text-[9px] text-gray-500 font-bold">G{grade}</span>
-                                     <span className="text-[10px] font-mono font-bold">{gVotes}</span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                         </div>
-                      </div>
-                    );
-                 })}
-               </div>
-             ))}
-           </div>
-        </div>
-
-        <div className="mt-12 pt-8 border-t border-gray-300 text-center text-xs text-gray-500">
-          <p>This report is system-generated and serves as the official tally of the RMCHS SSLG Election.</p>
-          <p>Certified Correct by the Commission on Elections.</p>
-        </div>
-      </div>
+      )}
 
       {/* SQL HELP MODAL */}
       {showSqlHelp && (
