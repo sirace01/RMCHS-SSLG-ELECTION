@@ -14,10 +14,11 @@ import {
   setElectionStatus,
   getSchoolYear,
   setSchoolYear,
-  updateAdminPassword
+  getAdminLrn,
+  updateAdminCredentials
 } from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER, SCHOOL_LOGO_URL, SSLG_LOGO_URL } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield } from 'lucide-react';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
@@ -99,11 +100,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [schoolYear, setSchoolYearState] = useState('2024-2025');
   const [isSavingYear, setIsSavingYear] = useState(false);
 
-  // Password Change State
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  // Settings / Password Modal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [adminLrn, setAdminLrn] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   // Candidates State
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
@@ -301,28 +303,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handleOpenSettings = async () => {
+    const currentLrn = await getAdminLrn();
+    setAdminLrn(currentLrn);
+    setShowSettingsModal(true);
+  };
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
+    if (!adminLrn) {
+      alert("Admin Username/LRN cannot be empty.");
+      return;
+    }
+    
+    // Only validate password if one is entered
+    if (newPassword && newPassword !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
-    if (newPassword.length < 6) {
+    if (newPassword && newPassword.length < 6) {
       alert("Password must be at least 6 characters.");
       return;
     }
 
-    setIsUpdatingPassword(true);
+    setIsUpdatingSettings(true);
     try {
-      await updateAdminPassword(newPassword);
-      alert("Admin password updated successfully.");
-      setShowPasswordModal(false);
+      // Pass undefined if password is empty so it doesn't update
+      await updateAdminCredentials(adminLrn, newPassword || undefined);
+      alert("Admin credentials updated successfully.");
+      setShowSettingsModal(false);
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: any) {
-      alert("Failed to update password: " + e.message);
+      alert("Failed to update credentials: " + e.message);
     } finally {
-      setIsUpdatingPassword(false);
+      setIsUpdatingSettings(false);
     }
   };
 
@@ -517,10 +532,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                  </button>
                  
                  <button 
-                   onClick={() => setShowPasswordModal(true)}
+                   onClick={handleOpenSettings}
                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition border border-slate-600"
                  >
-                   <Key size={14} /> Password
+                   <Settings size={14} /> Admin Config
                  </button>
 
                  <button onClick={onLogout} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
@@ -549,10 +564,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 {isElectionOpen ? "Election is OPEN (Tap to Close)" : "Election is CLOSED (Tap to Open)"}
               </button>
              <button 
-                onClick={() => setShowPasswordModal(true)}
+                onClick={handleOpenSettings}
                 className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg py-2 font-bold text-sm"
              >
-                <Key size={16} /> Password
+                <Settings size={16} /> Config
              </button>
              <button 
                 onClick={onLogout}
@@ -951,50 +966,62 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
       </div>
 
-      {/* CHANGE PASSWORD MODAL */}
-      {showPasswordModal && (
+      {/* ADMIN SETTINGS MODAL */}
+      {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
            <div className="bg-slate-900 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl flex flex-col">
               <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-2xl">
                  <div className="flex items-center gap-3">
                    <Shield className="text-green-500" size={24} />
-                   <h3 className="text-lg font-bold text-white">Change Admin Password</h3>
+                   <h3 className="text-lg font-bold text-white">Update Admin Credentials</h3>
                  </div>
-                 <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-white">
+                 <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-white">
                    <XCircle size={24} />
                  </button>
               </div>
               <div className="p-6 bg-slate-950">
-                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <form onSubmit={handleUpdateSettings} className="space-y-4">
                   <div>
-                    <label className="text-xs font-medium text-slate-400">New Password</label>
+                    <label className="text-xs font-medium text-slate-400">Admin Username (LRN)</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={adminLrn}
+                      onChange={e => setAdminLrn(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1 font-mono"
+                      placeholder="Enter Admin LRN"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-400">New Password <span className="text-slate-600">(Leave blank to keep current)</span></label>
                     <input 
                       type="password" 
-                      required
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1"
                       placeholder="Enter new password"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-slate-400">Confirm Password</label>
-                    <input 
-                      type="password" 
-                      required
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1"
-                      placeholder="Confirm new password"
-                    />
-                  </div>
+                  {newPassword && (
+                    <div className="animate-in fade-in slide-in-from-top-1">
+                      <label className="text-xs font-medium text-slate-400">Confirm Password</label>
+                      <input 
+                        type="password" 
+                        required={!!newPassword}
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-green-500 outline-none mt-1"
+                        placeholder="Confirm new password"
+                      />
+                    </div>
+                  )}
                   <div className="pt-2">
                     <button 
                       type="submit" 
-                      disabled={isUpdatingPassword}
-                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-50"
+                      disabled={isUpdatingSettings}
+                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-50 shadow-lg shadow-green-600/20"
                     >
-                      {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                      {isUpdatingSettings ? 'Updating...' : 'Update Credentials'}
                     </button>
                   </div>
                 </form>

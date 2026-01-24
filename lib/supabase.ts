@@ -300,11 +300,26 @@ export const verifyAdminCredentials = async (lrn: string, passcode: string): Pro
   }
 };
 
-// 18. AUTH: Update Admin Password
-export const updateAdminPassword = async (newPassword: string): Promise<void> => {
+// 18. AUTH: Get Admin LRN (for display)
+export const getAdminLrn = async (): Promise<string> => {
+  try {
+    const { data } = await supabase.from('config').select('value').eq('key', 'admin_lrn').single();
+    return data?.value || DEFAULT_ADMIN_LRN;
+  } catch {
+    return DEFAULT_ADMIN_LRN;
+  }
+};
+
+// 19. AUTH: Update Admin Credentials (LRN + Password)
+export const updateAdminCredentials = async (lrn: string, password?: string): Promise<void> => {
+  const updates = [{ key: 'admin_lrn', value: lrn }];
+  if (password) {
+    updates.push({ key: 'admin_password', value: password });
+  }
+  
   const { error } = await supabase
     .from('config')
-    .upsert({ key: 'admin_password', value: newPassword });
+    .upsert(updates);
   
   if (error) throw error;
 };
