@@ -232,12 +232,14 @@ export const getElectionStatus = async (): Promise<boolean> => {
       .eq('key', 'election_status')
       .single();
 
-    if (error || !data) {
-       // Default to TRUE if table doesn't exist or row missing, to avoid lockout
+    if (error) {
+       console.error("Error checking election status (table might be missing):", error);
        return true; 
     }
+    if (!data) return true;
     return data.value === 'OPEN';
   } catch (e) {
+    console.error("Unexpected error in getElectionStatus:", e);
     return true; 
   }
 };

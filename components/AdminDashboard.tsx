@@ -195,7 +195,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
   
   const handleToggleElection = async () => {
-     if (!window.confirm(`Are you sure you want to ${isElectionOpen ? 'CLOSE' : 'OPEN'} the election?\n${isElectionOpen ? 'Voters will no longer be able to log in or cast votes.' : 'Voters will be allowed to cast votes.'}`)) {
+     const action = isElectionOpen ? 'CLOSE' : 'OPEN';
+     if (!window.confirm(`Are you sure you want to ${action} the election?\n${isElectionOpen ? 'Voters will no longer be able to log in or cast votes.' : 'Voters will be allowed to cast votes.'}`)) {
        return;
      }
      
@@ -204,8 +205,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
        await setElectionStatus(!isElectionOpen);
        setIsElectionOpen(!isElectionOpen);
        fetchData();
-     } catch (e) {
-       alert("Failed to update election status.");
+     } catch (e: any) {
+       console.error(e);
+       // Show the actual error message from the database
+       alert(`Failed to update election status. \n\nError: ${e.message || "Unknown error"}\n\nTip: Did you run the SQL script in Supabase?`);
      } finally {
        setIsTogglingStatus(false);
      }
