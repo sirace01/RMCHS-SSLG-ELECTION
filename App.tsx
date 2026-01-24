@@ -10,18 +10,28 @@ import { CheckCircle } from 'lucide-react';
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(AppScreen.LOGIN);
   const [currentVoter, setCurrentVoter] = useState<Voter | null>(null);
+  const [flashMode, setFlashMode] = useState<'voter' | 'admin' | 'logout'>('voter');
 
   const handleLoginSuccess = (voter: Voter) => {
     setCurrentVoter(voter);
+    setFlashMode('voter');
     setCurrentScreen(AppScreen.FLASH);
   };
 
   const handleAdminLogin = () => {
-    setCurrentScreen(AppScreen.ADMIN);
+    setFlashMode('admin');
+    setCurrentScreen(AppScreen.FLASH);
   };
 
   const handleFlashComplete = () => {
-    setCurrentScreen(AppScreen.BALLOT);
+    if (flashMode === 'voter') {
+      setCurrentScreen(AppScreen.BALLOT);
+    } else if (flashMode === 'admin') {
+      setCurrentScreen(AppScreen.ADMIN);
+    } else if (flashMode === 'logout') {
+      setCurrentVoter(null);
+      setCurrentScreen(AppScreen.LOGIN);
+    }
   };
 
   const handleVoteSubmitted = () => {
@@ -29,8 +39,8 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setCurrentVoter(null);
-    setCurrentScreen(AppScreen.LOGIN);
+    setFlashMode('logout');
+    setCurrentScreen(AppScreen.FLASH);
   };
 
   return (
@@ -44,10 +54,11 @@ const App: React.FC = () => {
           />
         )}
 
-        {currentScreen === AppScreen.FLASH && currentVoter && (
+        {currentScreen === AppScreen.FLASH && (
           <FlashScreen 
             key="flash" 
-            voter={currentVoter} 
+            voter={currentVoter}
+            mode={flashMode}
             onComplete={handleFlashComplete} 
           />
         )}

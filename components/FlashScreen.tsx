@@ -3,18 +3,46 @@ import { motion } from 'framer-motion';
 import { SCHOOL_LOGO_URL, SSLG_LOGO_URL, Voter } from '../types';
 
 interface FlashScreenProps {
-  voter: Voter;
+  voter?: Voter | null;
+  mode: 'voter' | 'admin' | 'logout';
   onComplete: () => void;
 }
 
-const FlashScreen: React.FC<FlashScreenProps> = ({ voter, onComplete }) => {
+const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) => {
   useEffect(() => {
+    // Slightly faster for logout
+    const duration = mode === 'logout' ? 2500 : 3500;
     const timer = setTimeout(() => {
       onComplete();
-    }, 3500); // 3.5 seconds total
+    }, duration);
 
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, mode]);
+
+  // Determine Content based on mode
+  let title = "WELCOME";
+  let subtitle = "";
+  let subtext = "";
+  let loadingText = "Loading...";
+  let accentColor = "text-green-800"; // Default color
+
+  if (mode === 'voter' && voter) {
+    title = "WELCOME";
+    subtitle = `${voter.first_name} ${voter.last_name}`;
+    subtext = `Grade ${voter.grade_level}`;
+    loadingText = "Loading Ballot...";
+  } else if (mode === 'admin') {
+    title = "WELCOME";
+    subtitle = "ADMINISTRATOR";
+    subtext = "System Access Granted";
+    loadingText = "Loading Dashboard...";
+  } else if (mode === 'logout') {
+    title = "SIGNING OUT";
+    subtitle = voter ? `${voter.first_name}` : "Goodbye";
+    subtext = "Thank you for using SSLG Voting System";
+    loadingText = "Returning to Login...";
+    accentColor = "text-slate-600";
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center overflow-hidden">
@@ -59,21 +87,21 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, onComplete }) => {
         transition={{ delay: 1, duration: 0.8 }}
         className="mt-12 text-center z-10"
       >
-        <h2 className="text-3xl md:text-5xl font-black text-green-800 tracking-tight">
-          WELCOME
+        <h2 className={`text-3xl md:text-5xl font-black ${accentColor} tracking-tight uppercase`}>
+          {title}
         </h2>
         <h3 className="text-xl md:text-2xl font-bold text-gray-700 mt-2">
-          {voter.first_name} {voter.last_name}
+          {subtitle}
         </h3>
-        <p className="text-green-600 font-medium mt-1">Grade {voter.grade_level}</p>
+        <p className="text-green-600 font-medium mt-1 uppercase tracking-wide">{subtext}</p>
         
         <motion.div 
           initial={{ width: 0 }}
           animate={{ width: "100%" }}
-          transition={{ delay: 1.5, duration: 2 }}
+          transition={{ delay: 1.5, duration: 1.5 }}
           className="h-1.5 bg-yellow-400 mt-6 mx-auto rounded-full max-w-[200px]"
         />
-        <p className="text-gray-400 text-xs mt-2 uppercase tracking-widest">Loading Ballot...</p>
+        <p className="text-gray-400 text-xs mt-2 uppercase tracking-widest">{loadingText}</p>
       </motion.div>
     </div>
   );
