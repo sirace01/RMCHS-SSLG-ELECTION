@@ -9,10 +9,12 @@ import {
   addVoter, 
   deleteVoter, 
   bulkImportVoters,
-  uploadCandidatePhoto
+  uploadCandidatePhoto,
+  getElectionStatus,
+  setElectionStatus
 } from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER, SCHOOL_LOGO_URL, SSLG_LOGO_URL } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
@@ -34,12 +36,19 @@ interface ChartDataPoint {
 
 const DEFAULT_PLACEHOLDER = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
 
+// Moved outside to ensure constant type
+const GRADE_LEVELS: string[] = ['7', '8', '9', '10', '11', '12'];
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('canvassing');
   const [data, setData] = useState<Record<string, ChartDataPoint[]>>({});
   const [turnout, setTurnout] = useState({ voted: 0, total: 0 });
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
+  // Election Status
+  const [isElectionOpen, setIsElectionOpen] = useState(true);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+
   // Candidates State
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -71,6 +80,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const fetchData = async () => {
     setIsLoadingData(true);
     try {
+      // 0. Fetch Status
+      const status = await getElectionStatus();
+      setIsElectionOpen(status);
+
       // 1. Fetch Lists
       const cList: Candidate[] = await getCandidates();
       const vList: Voter[] = await getAllVoters();
@@ -103,14 +116,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       POSITIONS_ORDER.forEach(pos => {
          if (pos === 'Grade Level Rep') {
-            const reps: Candidate[] = cList.filter(c => c.position === 'Grade Level Rep');
+            const reps: Candidate[] = cList.filter((c: Candidate) => c.position === 'Grade Level Rep');
             const grades = Array.from(new Set(reps.map(r => r.grade_level))).sort((a,b) => (a || 0) - (b || 0));
             
             grades.forEach(g => {
                if (!g) return;
-               const relevantCandidates: Candidate[] = reps.filter(c => c.grade_level === g);
+               const relevantCandidates: Candidate[] = reps.filter((c: Candidate) => c.grade_level === g);
                if (relevantCandidates.length > 0) {
-                 const chartData = relevantCandidates.map(c => ({
+                 const chartData = relevantCandidates.map((c: Candidate) => ({
                     id: c.id,
                     name: c.full_name,
                     shortName: c.full_name.split(' ')[0], 
@@ -124,9 +137,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             });
 
          } else {
-             const relevantCandidates: Candidate[] = cList.filter(c => c.position === pos);
+             const relevantCandidates: Candidate[] = cList.filter((c: Candidate) => c.position === pos);
              if (relevantCandidates.length > 0) {
-               const chartData = relevantCandidates.map(c => ({
+               const chartData = relevantCandidates.map((c: Candidate) => ({
                  id: c.id,
                  name: c.full_name,
                  shortName: c.full_name.split(' ')[0], 
@@ -167,7 +180,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // --- WINNERS LOGIC ---
   const winners = useMemo(() => {
     const wins: { position: string, candidate: ChartDataPoint | null }[] = [];
-    Object.entries(data).forEach(([pos, candidates]) => {
+    Object.entries(data).forEach(([pos, candidates]: [string, ChartDataPoint[]]) => {
        if (candidates.length > 0) {
          // Candidates are already sorted by votes in fetchData
          wins.push({ position: pos, candidate: candidates[0] });
@@ -179,6 +192,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // --- HANDLERS ---
   const handlePrint = () => {
     window.print();
+  };
+  
+  const handleToggleElection = async () => {
+     if (!window.confirm(`Are you sure you want to ${isElectionOpen ? 'CLOSE' : 'OPEN'} the election?\n${isElectionOpen ? 'Voters will no longer be able to log in or cast votes.' : 'Voters will be allowed to cast votes.'}`)) {
+       return;
+     }
+     
+     setIsTogglingStatus(true);
+     try {
+       await setElectionStatus(!isElectionOpen);
+       setIsElectionOpen(!isElectionOpen);
+       fetchData();
+     } catch (e) {
+       alert("Failed to update election status.");
+     } finally {
+       setIsTogglingStatus(false);
+     }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,9 +330,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const percentage = turnout.total > 0 ? Math.round((turnout.voted / turnout.total) * 100) : 0;
   
-  // Grade levels for breakdown
-  const gradeLevels: string[] = ['7', '8', '9', '10', '11', '12'];
-
   return (
     <>
       <div className="min-h-screen bg-slate-900 text-white font-sans print:hidden">
@@ -354,15 +381,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </button>
               </nav>
 
-              <button onClick={onLogout} className="hidden sm:flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
-                <LogOut size={16} /> Logout
-              </button>
+              <div className="hidden sm:flex items-center gap-3">
+                 <button
+                   onClick={handleToggleElection}
+                   disabled={isTogglingStatus}
+                   className={cn(
+                     "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                     isElectionOpen 
+                       ? "bg-green-500/10 text-green-400 border-green-500/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500" 
+                       : "bg-red-500/10 text-red-400 border-red-500/50 hover:bg-green-500/10 hover:text-green-400 hover:border-green-500"
+                   )}
+                 >
+                   {isTogglingStatus ? <RefreshCw size={14} className="animate-spin" /> : (isElectionOpen ? <Unlock size={14} /> : <Lock size={14} />)}
+                   {isElectionOpen ? "Election Open" : "Election Closed"}
+                 </button>
+                 <button onClick={onLogout} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
+                   <LogOut size={16} /> Logout
+                 </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
           
+          {/* Mobile Election Status Toggle */}
+          <div className="sm:hidden mb-4 flex justify-center">
+             <button
+                onClick={handleToggleElection}
+                disabled={isTogglingStatus}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all border",
+                  isElectionOpen 
+                    ? "bg-green-900/30 text-green-400 border-green-700" 
+                    : "bg-red-900/30 text-red-400 border-red-700"
+                )}
+              >
+                {isTogglingStatus ? <RefreshCw size={16} className="animate-spin" /> : (isElectionOpen ? <Unlock size={16} /> : <Lock size={16} />)}
+                {isElectionOpen ? "Election is OPEN (Tap to Close)" : "Election is CLOSED (Tap to Open)"}
+              </button>
+          </div>
+
           {/* === TAB: CANVASSING === */}
           {activeTab === 'canvassing' && (
             <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -400,7 +459,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     {isLoadingData ? "Loading results..." : "No candidates or votes yet."}
                   </div>
                 )}
-                {Object.entries(data).map(([pos, chartData]) => (
+                {Object.entries(data).map(([pos, chartData]: [string, ChartDataPoint[]]) => (
                   <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
                       <h3 className="text-base sm:text-lg font-bold text-slate-200">{pos}</h3>
@@ -426,6 +485,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           )}
 
+          {/* ... (Other tabs remain the same) ... */}
           {/* === TAB: CANDIDATES === */}
           {activeTab === 'candidates' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -785,11 +845,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
            </h2>
 
            <div className="space-y-8">
-             {Object.entries(data).map(([pos, candidates]) => (
+             {Object.entries(data).map(([pos, candidates]: [string, ChartDataPoint[]]) => (
                <div key={pos} className="break-inside-avoid border rounded-lg p-4 border-gray-300">
                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4 uppercase">{pos}</h3>
                  
-                 {candidates.map((c, i) => {
+                 {candidates.map((c: ChartDataPoint, i: number) => {
                     const maxVotes = candidates[0]?.votes || 1; // Avoid div by zero
                     const percentage = Math.round((c.votes / (turnout.voted || 1)) * 100);
                     const barWidth = Math.max(0, Math.min(100, (c.votes / maxVotes) * 100));
@@ -819,7 +879,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                          <div className="flex items-center gap-2 pl-8">
                             <span className="text-[10px] text-gray-400 font-bold uppercase w-16">Grade Breakdown:</span>
                             <div className="flex-1 flex gap-1 h-3">
-                              {gradeLevels.map(grade => {
+                              {GRADE_LEVELS.map(grade => {
                                 const gVotes = c.grades[grade] || 0;
                                 // Simple relative width within the grade row? No, just fixed width blocks with color intensity?
                                 // Let's just show numbers: G7: 10 | G8: 20

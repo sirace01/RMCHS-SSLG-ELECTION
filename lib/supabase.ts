@@ -51,6 +51,13 @@ export const getCandidates = async (): Promise<Candidate[]> => {
 // 3. BALLOT: Submit Vote (Transaction-like)
 export const submitBallot = async (voter: Voter, selections: VoteSelection): Promise<boolean> => {
   try {
+    // Check if election is open before submitting
+    const isOpen = await getElectionStatus();
+    if (!isOpen) {
+      console.warn("Attempted to vote while election is closed.");
+      return false;
+    }
+
     // A. Create the votes array
     const votesToInsert = Object.entries(selections).map(([pos, candidateId]) => ({
       position: pos,
@@ -214,4 +221,33 @@ export const uploadCandidatePhoto = async (file: File): Promise<string> => {
     .getPublicUrl(filePath);
 
   return data.publicUrl;
+};
+
+// 13. CONFIG: Get Election Status
+export const getElectionStatus = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('config')
+      .select('value')
+      .eq('key', 'election_status')
+      .single();
+
+    if (error || !data) {
+       // Default to TRUE if table doesn't exist or row missing, to avoid lockout
+       return true; 
+    }
+    return data.value === 'OPEN';
+  } catch (e) {
+    return true; 
+  }
+};
+
+// 14. CONFIG: Set Election Status
+export const setElectionStatus = async (isOpen: boolean): Promise<void> => {
+  const value = isOpen ? 'OPEN' : 'CLOSED';
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key: 'election_status', value });
+  
+  if (error) throw error;
 };

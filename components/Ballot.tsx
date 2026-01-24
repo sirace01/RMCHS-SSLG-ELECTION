@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Circle, AlertTriangle, Send, LogOut, ChevronRight, X, ZoomIn } from 'lucide-react';
 import { Voter, Candidate, POSITIONS_ORDER, VoteSelection } from '../types';
-import { getCandidates, submitBallot } from '../lib/supabase'; // Real functions
+import { getCandidates, submitBallot, getElectionStatus } from '../lib/supabase'; // Real functions
 import { cn } from '../lib/utils';
 
 interface BallotProps {
@@ -28,10 +28,20 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
       setIsLoading(true);
       const allCandidates = await getCandidates();
       
-      // Filter: Everyone sees main positions. Grade Level Reps only if matching grade.
+      // Filter: Everyone sees main positions. 
+      // Grade Level Reps logic:
+      // Grade 7 -> Votes for Grade 8 Rep
+      // Grade 8 -> Votes for Grade 9 Rep
+      // Grade 9 -> Votes for Grade 10 Rep
+      // Grade 10 -> Votes for Grade 11 Rep
+      // Grade 11 -> Votes for Grade 12 Rep
+      // Grade 12 -> No Rep vote (representatives assume position next year)
       const filtered = allCandidates.filter(c => {
         if (c.position === 'Grade Level Rep') {
-          return c.grade_level === voter.grade_level;
+          if (voter.grade_level === 12) {
+            return false;
+          }
+          return c.grade_level === voter.grade_level + 1;
         }
         return true;
       });
@@ -46,7 +56,13 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   const groupedCandidates = useMemo(() => {
     const groups: Record<string, Candidate[]> = {};
     POSITIONS_ORDER.forEach(pos => {
-      const displayPos = pos === 'Grade Level Rep' ? `Grade ${voter.grade_level} Representative` : pos;
+      let displayPos = pos;
+      
+      if (pos === 'Grade Level Rep') {
+         if (voter.grade_level === 12) return; // Grade 12 does not vote for any representative
+         displayPos = `Grade ${voter.grade_level + 1} Representative`;
+      }
+      
       const cands = candidates.filter(c => c.position === pos);
       
       if (cands.length > 0) {
@@ -71,6 +87,16 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      // Final check
+      const isOpen = await getElectionStatus();
+      if (!isOpen) {
+        alert("The election has just been CLOSED by the administrator. Your vote cannot be accepted.");
+        setIsSubmitting(false);
+        setIsConfirming(false);
+        onLogout();
+        return;
+      }
+
       const success = await submitBallot(voter, selections);
       if (success) {
         onVoteSubmitted();

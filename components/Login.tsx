@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
-import { getVoterByLrn } from '../lib/supabase'; // Import real function
+import { getVoterByLrn, getElectionStatus } from '../lib/supabase'; // Import real function
 import { Voter, SCHOOL_LOGO_URL } from '../types';
 
 interface LoginProps {
@@ -34,14 +34,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
         return;
       }
 
-      // 2. Fetch Voter from DB
+      // 2. Check Election Status
+      const isElectionOpen = await getElectionStatus();
+      if (!isElectionOpen) {
+         throw new Error("The election is officially CLOSED. Voting has ended.");
+      }
+
+      // 3. Fetch Voter from DB
       const voter = await getVoterByLrn(lrn);
 
       if (!voter) {
         throw new Error("LRN not found in the registry.");
       }
 
-      // 3. Verify Passcode
+      // 4. Verify Passcode
       // Logic: Allow exact match from DB OR the generated formula
       const generatedPasscode = generatePasscode(voter.lrn, voter.first_name, voter.last_name);
       
@@ -52,7 +58,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
          throw new Error("Invalid passcode. Please check your LRN and Name combination.");
       }
 
-      // 4. Check if already voted
+      // 5. Check if already voted
       if (voter.has_voted) {
         throw new Error("This learner has already cast their vote.");
       }
