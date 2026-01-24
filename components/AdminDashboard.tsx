@@ -141,8 +141,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       const status = await getElectionStatus();
       
       setIsElectionOpen(status);
-      // Removed setSchoolYearState(year) from here
-
+      
       // 1. Fetch Lists
       const cList: Candidate[] = await getCandidates();
       const vList: Voter[] = await getAllVoters();
@@ -894,6 +893,118 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* --- PRINT VIEW --- */}
+      <div className="hidden print:block bg-white text-black p-8 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 pb-4 border-b-2 border-green-800">
+          <img src={SCHOOL_LOGO_URL} className="w-20 h-20 object-contain rounded-full" alt="School Logo" />
+          <div className="text-center">
+             <h1 className="text-2xl font-bold uppercase text-green-900">Official Election Returns</h1>
+             <p className="font-semibold text-gray-700">SSLG Elections {schoolYear}</p>
+             <p className="text-sm text-gray-500">Ramon Magsaysay (Cubao) High School</p>
+             <p className="text-xs text-gray-400 mt-1">Generated: {lastUpdated.toLocaleString()}</p>
+          </div>
+          <img src={SSLG_LOGO_URL} className="w-20 h-20 object-contain rounded-full" alt="SSLG Logo" />
+        </div>
+
+        {/* 1. WINNERS LIST */}
+        <div className="mb-10 break-inside-avoid">
+           <h2 className="text-xl font-bold text-white bg-green-800 px-4 py-2 mb-4 rounded-sm print:bg-green-800 print:text-white uppercase tracking-wider">
+             Official List of Winners
+           </h2>
+           <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-12 gap-2 font-bold text-xs uppercase bg-gray-100 p-2 border-b-2 border-gray-300">
+                 <div className="col-span-4">Position</div>
+                 <div className="col-span-4">Elected Officer</div>
+                 <div className="col-span-2">Partylist</div>
+                 <div className="col-span-2 text-right">Total Votes</div>
+              </div>
+              {winners.map((win, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 text-sm p-2 border-b border-gray-200 items-center">
+                   <div className="col-span-4 font-bold text-gray-800 uppercase">{win.position}</div>
+                   <div className="col-span-4 font-bold text-green-800 flex items-center gap-2">
+                      {win.candidate ? (
+                         <>
+                           <img src={win.candidate.image || DEFAULT_PLACEHOLDER} className="w-8 h-8 rounded-full border border-gray-200 object-cover" />
+                           {win.candidate.name}
+                         </>
+                      ) : (
+                         <span className="text-gray-400 italic">No Candidate</span>
+                      )}
+                   </div>
+                   <div className="col-span-2 text-xs text-gray-600">{win.candidate?.partylist || "-"}</div>
+                   <div className="col-span-2 text-right font-mono font-bold">{win.candidate?.votes || 0}</div>
+                </div>
+              ))}
+           </div>
+        </div>
+
+        {/* 2. DETAILED BREAKDOWN & GRAPHS */}
+        <div className="break-inside-avoid">
+           <h2 className="text-xl font-bold text-white bg-gray-800 px-4 py-2 mb-6 rounded-sm print:bg-gray-800 print:text-white uppercase tracking-wider">
+             Canvassing Report & Demographics
+           </h2>
+
+           <div className="space-y-8">
+             {Object.entries(data).map(([pos, candidates]: [string, ChartDataPoint[]]) => (
+               <div key={pos} className="break-inside-avoid border rounded-lg p-4 border-gray-300">
+                 <h3 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4 uppercase">{pos}</h3>
+                 
+                 {candidates.map((c: ChartDataPoint, i: number) => {
+                    const maxVotes = candidates[0]?.votes || 1; // Avoid div by zero
+                    const percentage = Math.round((c.votes / (turnout.voted || 1)) * 100);
+                    const barWidth = Math.max(0, Math.min(100, (c.votes / maxVotes) * 100));
+
+                    return (
+                      <div key={c.id} className="mb-4 last:mb-0">
+                         <div className="flex justify-between items-end mb-1">
+                            <div className="flex items-center gap-2">
+                               <span className="font-bold text-sm w-6 text-gray-400">#{i+1}</span>
+                               <span className="font-bold text-sm text-gray-800">{c.name}</span>
+                               <span className="text-xs text-gray-500">({c.partylist})</span>
+                            </div>
+                            <div className="text-sm font-bold">
+                               {c.votes} <span className="text-xs font-normal text-gray-500">votes</span>
+                            </div>
+                         </div>
+                         
+                         {/* Main Result Bar */}
+                         <div className="w-full bg-gray-100 h-4 rounded-sm overflow-hidden mb-2 border border-gray-200">
+                            <div 
+                              className="h-full bg-green-600 print:bg-green-600 print:print-color-adjust-exact" 
+                              style={{ width: `${barWidth}%` }}
+                            />
+                         </div>
+
+                         {/* Demographic Breakdown (Votes per Grade) */}
+                         <div className="flex items-center gap-2 pl-8">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase w-16">Grade Breakdown:</span>
+                            <div className="flex-1 flex gap-1 h-3">
+                              {GRADE_LEVELS.map(grade => {
+                                const gVotes = c.grades[grade] || 0;
+                                return (
+                                  <div key={grade} className="flex items-center bg-gray-50 border border-gray-200 rounded px-1.5 gap-1">
+                                     <span className="text-[9px] text-gray-500 font-bold">G{grade}</span>
+                                     <span className="text-[10px] font-mono font-bold">{gVotes}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                         </div>
+                      </div>
+                    );
+                 })}
+               </div>
+             ))}
+           </div>
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-gray-300 text-center text-xs text-gray-500">
+          <p>This report is system-generated and serves as the official tally of the RMCHS SSLG Election.</p>
+          <p>Certified Correct by the Commission on Elections.</p>
         </div>
       </div>
 
