@@ -11,10 +11,12 @@ import {
   bulkImportVoters,
   uploadCandidatePhoto,
   getElectionStatus,
-  setElectionStatus
+  setElectionStatus,
+  getSchoolYear,
+  setSchoolYear
 } from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER, SCHOOL_LOGO_URL, SSLG_LOGO_URL } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock } from 'lucide-react';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
@@ -39,15 +41,59 @@ const DEFAULT_PLACEHOLDER = "https://upload.wikimedia.org/wikipedia/commons/8/89
 // Moved outside to ensure constant type
 const GRADE_LEVELS: string[] = ['7', '8', '9', '10', '11', '12'];
 
+const SETUP_SQL_SCRIPT = `-- Run this in Supabase SQL Editor to fix the error
+
+-- 1. Create Storage Bucket for photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('candidate-photos', 'candidate-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Storage Policies
+DROP POLICY IF EXISTS "Public View Access" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Public Delete Access" ON storage.objects;
+
+CREATE POLICY "Public View Access" ON storage.objects FOR SELECT USING ( bucket_id = 'candidate-photos' );
+CREATE POLICY "Allow public uploads" ON storage.objects FOR INSERT TO public WITH CHECK ( bucket_id = 'candidate-photos' );
+CREATE POLICY "Public Delete Access" ON storage.objects FOR DELETE TO public USING ( bucket_id = 'candidate-photos' );
+
+-- 3. Create Config Table for Election Status
+CREATE TABLE IF NOT EXISTS config (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
+-- 4. Seed Default Values
+INSERT INTO config (key, value) VALUES ('election_status', 'OPEN') ON CONFLICT DO NOTHING;
+INSERT INTO config (key, value) VALUES ('school_year', '2024-2025') ON CONFLICT DO NOTHING;
+
+-- 5. Enable RLS and Grant Permissions
+ALTER TABLE config ENABLE ROW LEVEL SECURITY;
+
+-- Grant access to anon (public) and authenticated users
+GRANT ALL ON TABLE config TO anon, authenticated, service_role;
+
+-- 6. Config Policies
+DROP POLICY IF EXISTS "Public read config" ON config;
+DROP POLICY IF EXISTS "Public update config" ON config;
+DROP POLICY IF EXISTS "Public insert config" ON config;
+
+CREATE POLICY "Public read config" ON config FOR SELECT USING (true);
+CREATE POLICY "Public update config" ON config FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Public insert config" ON config FOR INSERT WITH CHECK (true);`;
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('canvassing');
   const [data, setData] = useState<Record<string, ChartDataPoint[]>>({});
   const [turnout, setTurnout] = useState({ voted: 0, total: 0 });
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
-  // Election Status
+  // Election Status & Config
   const [isElectionOpen, setIsElectionOpen] = useState(true);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [showSqlHelp, setShowSqlHelp] = useState(false);
+  const [schoolYear, setSchoolYearState] = useState('2024-2025');
+  const [isSavingYear, setIsSavingYear] = useState(false);
 
   // Candidates State
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
@@ -80,9 +126,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const fetchData = async () => {
     setIsLoadingData(true);
     try {
-      // 0. Fetch Status
-      const status = await getElectionStatus();
+      // 0. Fetch Configs (Status & School Year)
+      const [status, year] = await Promise.all([
+        getElectionStatus(),
+        getSchoolYear()
+      ]);
+      
       setIsElectionOpen(status);
+      setSchoolYearState(year);
 
       // 1. Fetch Lists
       const cList: Candidate[] = await getCandidates();
@@ -207,11 +258,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
        fetchData();
      } catch (e: any) {
        console.error(e);
-       // Show the actual error message from the database
-       alert(`Failed to update election status. \n\nError: ${e.message || "Unknown error"}\n\nTip: Did you run the SQL script in Supabase?`);
+       const msg = e.message || "";
+       if (msg.includes("schema cache") || msg.includes("does not exist") || msg.includes("config")) {
+          setShowSqlHelp(true);
+       } else {
+          alert(`Failed to update election status. \n\nError: ${msg}`);
+       }
      } finally {
        setIsTogglingStatus(false);
      }
+  };
+
+  const handleSaveSchoolYear = async () => {
+    setIsSavingYear(true);
+    try {
+      await setSchoolYear(schoolYear);
+    } catch (e: any) {
+      console.error("Failed to save school year", e);
+      // Don't alert aggressively on blur, maybe just log
+    } finally {
+      setIsSavingYear(false);
+    }
+  };
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(SETUP_SQL_SCRIPT);
+    alert("SQL Code copied to clipboard! Now paste it in Supabase SQL Editor.");
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -429,10 +501,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           {activeTab === 'canvassing' && (
             <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 border-b border-slate-700 pb-6">
+                
+                {/* School Year Configuration */}
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                     <Database size={10} /> School Year
+                   </label>
+                   <div className="flex items-center gap-2">
+                     <input 
+                       type="text" 
+                       value={schoolYear} 
+                       onChange={(e) => setSchoolYearState(e.target.value)}
+                       onBlur={handleSaveSchoolYear}
+                       className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 w-full sm:w-48 focus:ring-2 focus:ring-green-500 outline-none font-bold text-sm"
+                       placeholder="e.g. 2024-2025"
+                     />
+                     {isSavingYear && <RefreshCw size={14} className="text-green-500 animate-spin" />}
+                   </div>
+                </div>
+
                 <button 
                   onClick={handlePrint}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium shadow-lg transition"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-medium shadow-lg transition"
                 >
                   <Printer size={18} /> Print Official Report
                 </button>
@@ -802,7 +893,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <img src={SCHOOL_LOGO_URL} className="w-20 h-20 object-contain rounded-full" alt="School Logo" />
           <div className="text-center">
              <h1 className="text-2xl font-bold uppercase text-green-900">Official Election Returns</h1>
-             <p className="font-semibold text-gray-700">SSLG Elections 2024-2025</p>
+             <p className="font-semibold text-gray-700">SSLG Elections {schoolYear}</p>
              <p className="text-sm text-gray-500">Ramon Magsaysay (Cubao) High School</p>
              <p className="text-xs text-gray-400 mt-1">Generated: {lastUpdated.toLocaleString()}</p>
           </div>
@@ -908,6 +999,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <p>Certified Correct by the Commission on Elections.</p>
         </div>
       </div>
+
+      {/* SQL HELP MODAL */}
+      {showSqlHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+           <div className="bg-slate-900 rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-2xl">
+                 <div className="flex items-center gap-3">
+                   <Database className="text-red-500" size={24} />
+                   <div>
+                      <h3 className="text-lg font-bold text-white">Missing Database Table</h3>
+                      <p className="text-xs text-slate-400">The "config" table was not found.</p>
+                   </div>
+                 </div>
+                 <button onClick={() => setShowSqlHelp(false)} className="text-slate-400 hover:text-white">
+                   <XCircle size={24} />
+                 </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 bg-slate-950">
+                 <p className="text-sm text-slate-300 mb-4">
+                    The app cannot save the election status because the database is incomplete. 
+                    Please run the following SQL script in your Supabase Dashboard:
+                 </p>
+                 <div className="relative">
+                   <pre className="bg-black border border-slate-800 rounded-lg p-4 text-xs font-mono text-green-400 overflow-x-auto whitespace-pre-wrap h-64">
+                      {SETUP_SQL_SCRIPT}
+                   </pre>
+                   <button 
+                     onClick={handleCopySql}
+                     className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-md transition border border-slate-600"
+                     title="Copy Code"
+                   >
+                     <Copy size={16} />
+                   </button>
+                 </div>
+                 <div className="mt-4 text-xs text-slate-500 space-y-1">
+                    <p>1. Go to <a href="https://supabase.com/dashboard" target="_blank" className="text-blue-400 hover:underline">Supabase Dashboard</a></p>
+                    <p>2. Open your project &rarr; SQL Editor</p>
+                    <p>3. Paste the code above and click RUN</p>
+                 </div>
+              </div>
+              <div className="p-4 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-end">
+                 <button 
+                   onClick={() => setShowSqlHelp(false)}
+                   className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition"
+                 >
+                   Close
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </>
   );
 };

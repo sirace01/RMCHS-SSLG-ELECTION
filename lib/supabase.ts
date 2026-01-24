@@ -253,3 +253,28 @@ export const setElectionStatus = async (isOpen: boolean): Promise<void> => {
   
   if (error) throw error;
 };
+
+// 15. CONFIG: Get School Year
+export const getSchoolYear = async (): Promise<string> => {
+  try {
+    const { data, error } = await supabase
+      .from('config')
+      .select('value')
+      .eq('key', 'school_year')
+      .single();
+
+    if (error || !data) return '2024-2025';
+    return data.value;
+  } catch (e) {
+    return '2024-2025';
+  }
+};
+
+// 16. CONFIG: Set School Year
+export const setSchoolYear = async (year: string): Promise<void> => {
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key: 'school_year', value: year });
+  
+  if (error) throw error;
+};
