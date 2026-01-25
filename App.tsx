@@ -3,6 +3,7 @@ import Login from './components/Login';
 import FlashScreen from './components/FlashScreen';
 import Ballot from './components/Ballot';
 import AdminDashboard from './components/AdminDashboard';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import { AppScreen, Voter } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
@@ -21,6 +22,11 @@ const App: React.FC = () => {
   const handleAdminLogin = () => {
     setFlashMode('admin');
     setCurrentScreen(AppScreen.FLASH);
+  };
+
+  const handleSuperAdminLogin = () => {
+    setFlashMode('admin'); // Reuse admin flash mode for simplicity, or add a specific one
+    setCurrentScreen(AppScreen.SUPER_ADMIN);
   };
 
   const handleFlashComplete = () => {
@@ -51,6 +57,7 @@ const App: React.FC = () => {
             key="login" 
             onLoginSuccess={handleLoginSuccess} 
             onAdminLogin={handleAdminLogin}
+            onSuperAdminLogin={handleSuperAdminLogin}
           />
         )}
 
@@ -103,6 +110,10 @@ const App: React.FC = () => {
 
         {currentScreen === AppScreen.ADMIN && (
           <AdminDashboard key="admin" onLogout={handleLogout} />
+        )}
+
+        {currentScreen === AppScreen.SUPER_ADMIN && (
+          <SuperAdminDashboard key="superadmin" onLogout={handleLogout} />
         )}
       </AnimatePresence>
     </div>

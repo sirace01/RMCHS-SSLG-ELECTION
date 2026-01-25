@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
-import { getVoterByLrn, getElectionStatus, verifyAdminCredentials } from '../lib/supabase'; // Import real function
+import { getVoterByLrn, getElectionStatus, verifyAdminCredentials, verifySuperAdminCredentials } from '../lib/supabase'; // Import real function
 import { Voter, SCHOOL_LOGO_URL } from '../types';
 
 interface LoginProps {
   onLoginSuccess: (voter: Voter) => void;
   onAdminLogin: () => void;
+  onSuperAdminLogin: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdminLogin }) => {
   const [lrn, setLrn] = useState('');
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin }) => {
     setLoading(true);
 
     try {
+      // 0. Check for Super Admin Credentials first
+      const isSuper = await verifySuperAdminCredentials(lrn, passcode);
+      if (isSuper) {
+        onSuperAdminLogin();
+        return;
+      }
+
       // 1. Check for Admin Credentials
       const isAdmin = await verifyAdminCredentials(lrn, passcode);
       if (isAdmin) {

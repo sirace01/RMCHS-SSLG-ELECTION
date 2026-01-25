@@ -31,7 +31,8 @@ export enum AppScreen {
   FLASH = 'FLASH',
   BALLOT = 'BALLOT',
   SUCCESS = 'SUCCESS',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN'
 }
 
 export const POSITIONS_ORDER = [

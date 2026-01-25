@@ -21,6 +21,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const DEFAULT_ADMIN_LRN = '111111111111';
 const DEFAULT_ADMIN_PASS = 'SSLGRMCHS@2026';
 
+const DEFAULT_SUPER_USER = 'SUPERADMIN';
+const DEFAULT_SUPER_PASS = 'ADMINSUPER';
+
 // --- API FUNCTIONS ---
 
 // 1. LOGIN: Fetch voter by LRN
@@ -330,4 +333,45 @@ export const updateAdminCredentials = async (lrn: string, password?: string): Pr
     .upsert(updates);
   
   if (error) throw error;
+};
+
+// --- SUPER ADMIN FUNCTIONS ---
+
+// 20. AUTH: Verify Super Admin
+export const verifySuperAdminCredentials = async (user: string, pass: string): Promise<boolean> => {
+  try {
+    const { data: userData } = await supabase.from('config').select('value').eq('key', 'superadmin_username').single();
+    const { data: passData } = await supabase.from('config').select('value').eq('key', 'superadmin_password').single();
+
+    const correctUser = userData?.value || DEFAULT_SUPER_USER;
+    const correctPass = passData?.value || DEFAULT_SUPER_PASS;
+
+    return user === correctUser && pass === correctPass;
+  } catch (e) {
+    return user === DEFAULT_SUPER_USER && pass === DEFAULT_SUPER_PASS;
+  }
+};
+
+// 21. SUPER: Wipe All Voters
+export const wipeAllVoters = async (): Promise<void> => {
+  // Assuming a generic condition to match all rows since Supabase doesn't allow empty delete
+  const { error } = await supabase.from('voters').delete().neq('lrn', '000000');
+  if (error) throw error;
+};
+
+// 22. SUPER: Wipe All Candidates (Must delete votes first)
+export const wipeAllCandidates = async (): Promise<void> => {
+  // First, delete all votes to avoid foreign key constraints
+  await supabase.from('votes').delete().neq('grade_level', 0);
+  
+  // Then delete candidates
+  const { error } = await supabase.from('candidates').delete().neq('position', 'INVALID');
+  if (error) throw error;
+};
+
+// 23. SUPER: Reset Everything (Voters, Candidates, Votes)
+export const factoryResetElection = async (): Promise<void> => {
+  await supabase.from('votes').delete().neq('grade_level', 0);
+  await supabase.from('candidates').delete().neq('position', 'INVALID');
+  await supabase.from('voters').delete().neq('lrn', '000000');
 };
