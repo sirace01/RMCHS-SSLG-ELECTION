@@ -18,7 +18,7 @@ import {
   getAdminLrn,
   updateAdminCredentials
 } from '../lib/supabase';
-import { Candidate, Voter, POSITIONS_ORDER } from '../types';
+import { Candidate, Voter, POSITIONS_ORDER, DEFAULT_SCHOOL_LOGO, DEFAULT_SSLG_LOGO, DEFAULT_SCHOOL_NAME } from '../types';
 import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -522,9 +522,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   
   return (
     <>
-      <div className="min-h-screen bg-slate-900 text-white font-sans print:hidden">
-        {/* Top Navigation Bar */}
-        <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg">
+      <div className="min-h-screen bg-slate-900 text-white font-sans print:bg-white print:text-black">
+        {/* Top Navigation Bar - Hidden on Print */}
+        <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-lg print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-16 gap-3">
               
@@ -601,10 +601,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none">
           
-          {/* Mobile Election Status Toggle */}
-          <div className="sm:hidden mb-4 grid grid-cols-2 gap-2">
+          {/* PRINT HEADER: Visible only when printing */}
+          <div className="hidden print:flex flex-col items-center justify-center mb-8 border-b-2 border-black pb-4">
+             <div className="flex items-center gap-6 mb-2">
+                <img src={DEFAULT_SCHOOL_LOGO} className="w-20 h-20 object-contain" alt="School Logo" />
+                <div className="text-center text-black">
+                   <h1 className="text-2xl font-bold uppercase tracking-wider">{DEFAULT_SCHOOL_NAME}</h1>
+                   <h2 className="text-xl font-semibold text-gray-800">SSLG ELECTION OFFICIAL CANVASSING REPORT</h2>
+                   <p className="text-sm text-gray-600">School Year {schoolYear}</p>
+                </div>
+                <img src={DEFAULT_SSLG_LOGO} className="w-20 h-20 object-contain" alt="SSLG Logo" />
+             </div>
+             <p className="text-xs text-gray-500 mt-2">Generated on {new Date().toLocaleString()}</p>
+          </div>
+
+          {/* Mobile Election Status Toggle - Hidden on print */}
+          <div className="sm:hidden mb-4 grid grid-cols-2 gap-2 print:hidden">
              <button
                 onClick={handleToggleElection}
                 disabled={isTogglingStatus}
@@ -636,7 +650,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           {activeTab === 'canvassing' && (
             <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 border-b border-slate-700 pb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 border-b border-slate-700 pb-6 print:hidden">
                 
                 {/* School Year Configuration */}
                 <div className="flex flex-col gap-1 w-full sm:w-auto">
@@ -665,36 +679,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </div>
 
               {/* Turnout Widget */}
-              <div className="bg-slate-800 rounded-2xl p-4 sm:p-6 border border-slate-700">
+              <div className="bg-slate-800 rounded-2xl p-4 sm:p-6 border border-slate-700 print:bg-transparent print:border-black print:text-black">
                 <div className="flex justify-between items-end mb-4">
-                  <h2 className="text-lg sm:text-xl font-semibold">Voter Turnout</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold print:text-black">Voter Turnout</h2>
                   <div className="text-right">
-                    <span className="text-3xl sm:text-4xl font-bold text-green-400">{percentage}%</span>
-                    <p className="text-xs sm:text-sm text-slate-400">{turnout.voted} / {turnout.total} Registered</p>
+                    <span className="text-3xl sm:text-4xl font-bold text-green-400 print:text-black">{percentage}%</span>
+                    <p className="text-xs sm:text-sm text-slate-400 print:text-black">{turnout.voted} / {turnout.total} Registered</p>
                   </div>
                 </div>
-                <div className="w-full bg-slate-700 rounded-full h-3 sm:h-4 overflow-hidden">
+                <div className="w-full bg-slate-700 rounded-full h-3 sm:h-4 overflow-hidden print:border print:border-black">
                   <div 
-                    className="bg-green-500 h-full rounded-full transition-all duration-1000" 
+                    className="bg-green-500 h-full rounded-full transition-all duration-1000 print:bg-black" 
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
               </div>
 
               {/* Charts Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 print:grid-cols-2 print:gap-8">
                 {Object.keys(data).length === 0 && (
                   <div className="col-span-1 md:col-span-2 text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                     {isLoadingData ? "Loading results..." : "No candidates or votes yet."}
                   </div>
                 )}
                 {Object.entries(data).map(([pos, chartData]: [string, ChartDataPoint[]]) => (
-                  <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl">
+                  <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl print:bg-white print:border-none print:shadow-none print:break-inside-avoid">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-200">{pos}</h3>
-                      <RefreshCw size={14} className={cn("text-slate-500", isLoadingData && "animate-spin")} />
+                      <h3 className="text-base sm:text-lg font-bold text-slate-200 print:text-black uppercase border-b-2 border-black pb-1 w-full">{pos}</h3>
                     </div>
-                    <div className="h-64 w-full">
+                    
+                    {/* Print Table View (Better for static reports) */}
+                    <div className="hidden print:block">
+                        <table className="w-full text-sm text-left">
+                           <thead>
+                              <tr className="border-b border-black">
+                                 <th className="py-1">Candidate</th>
+                                 <th className="py-1 text-right">Votes</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              {chartData.map((c) => (
+                                 <tr key={c.id} className="border-b border-gray-300">
+                                    <td className="py-1">{c.name} <span className="text-xs text-gray-500">({c.partylist || "Ind."})</span></td>
+                                    <td className="py-1 text-right font-bold">{c.votes}</td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                    </div>
+
+                    {/* Web Chart View */}
+                    <div className="h-64 w-full print:hidden">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
@@ -717,7 +752,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           {/* ... (Other tabs remain the same) ... */}
           {/* === TAB: CANDIDATES === */}
           {activeTab === 'candidates' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 print:hidden">
               {/* Add Candidate Form */}
               <div className="lg:col-span-1">
                 <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 sm:p-6 sticky top-24">
@@ -867,7 +902,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
           {/* === TAB: VOTERS === */}
           {activeTab === 'voters' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 print:hidden">
                {/* Add Voter Form */}
                <div className="lg:col-span-1 space-y-6">
                   <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 sm:p-6 sticky top-24">
@@ -1023,7 +1058,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       {/* ADMIN SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm print:hidden">
            <div className="bg-slate-900 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl flex flex-col">
               <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-2xl">
                  <div className="flex items-center gap-3">
@@ -1087,7 +1122,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       {/* SQL HELP MODAL */}
       {showSqlHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm print:hidden">
            <div className="bg-slate-900 rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
               <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800 rounded-t-2xl">
                  <div className="flex items-center gap-3">
