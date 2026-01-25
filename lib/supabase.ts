@@ -23,6 +23,34 @@ const DEFAULT_ADMIN_PASS = 'SSLGRMCHS@2026';
 const DEFAULT_SUPER_USER = 'SUPERADMIN';
 const DEFAULT_SUPER_PASS = 'ADMINSUPER';
 
+// --- HELPER: Fetch All Rows (Bypass 1000 limit) ---
+const fetchAllRows = async <T>(table: string, orderBy: string = 'created_at'): Promise<T[]> => {
+  let allRows: T[] = [];
+  let from = 0;
+  const step = 1000;
+  
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order(orderBy, { ascending: false })
+      .range(from, from + step - 1);
+      
+    if (error) {
+      console.error(`Error fetching ${table}:`, error);
+      break;
+    }
+    
+    if (!data || data.length === 0) break;
+    
+    allRows = [...allRows, ...(data as T[])];
+    
+    if (data.length < step) break;
+    from += step;
+  }
+  return allRows;
+};
+
 // --- API FUNCTIONS ---
 
 // 1. LOGIN: Fetch voter by LRN
@@ -90,16 +118,8 @@ export const submitBallot = async (voter: Voter, selections: VoteSelection): Pro
 
 // 4. ADMIN: Fetch all Voters
 export const getAllVoters = async (): Promise<Voter[]> => {
-  const { data, error } = await supabase
-    .from('voters')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching voters:', error);
-    return [];
-  }
-  return data as Voter[];
+  // Use batched fetching to get accurate count > 1000
+  return fetchAllRows<Voter>('voters', 'created_at');
 };
 
 // 5. ADMIN: Add Single Voter
@@ -184,17 +204,11 @@ export const deleteCandidate = async (id: string): Promise<void> => {
 
 // 10. ADMIN: Get Vote Counts
 export const getVoteCounts = async (): Promise<Record<string, number>> => {
-  const { data, error } = await supabase
-    .from('votes')
-    .select('candidate_id');
-
-  if (error) {
-    console.error("Error fetching votes:", error);
-    return {};
-  }
+  // Use getAllVotes to ensure we have all records
+  const allVotes = await getAllVotes();
 
   const counts: Record<string, number> = {};
-  data.forEach((vote: any) => {
+  allVotes.forEach((vote: any) => {
     if (vote.candidate_id) {
       counts[vote.candidate_id] = (counts[vote.candidate_id] || 0) + 1;
     }
@@ -205,16 +219,8 @@ export const getVoteCounts = async (): Promise<Record<string, number>> => {
 
 // 11. ADMIN: Get All Votes Raw
 export const getAllVotes = async (): Promise<Vote[]> => {
-  const { data, error } = await supabase
-    .from('votes')
-    .select('*');
-
-  if (error) {
-    console.error("Error fetching all votes:", error);
-    return [];
-  }
-  
-  return data as Vote[];
+  // Use batched fetching to get all votes > 1000
+  return fetchAllRows<Vote>('votes', 'created_at');
 };
 
 // 12. STORAGE: Generic Upload (Photos/Logos)
