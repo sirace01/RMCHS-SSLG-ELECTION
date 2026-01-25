@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Swal from 'sweetalert2';
 import { 
@@ -134,6 +134,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- HELPER: Toast Notification ---
   const Toast = Swal.mixin({
@@ -428,6 +431,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } finally {
       setIsAdding(false);
     }
+  };
+
+  const handleImportClick = () => {
+    if (isImporting) return;
+    
+    Swal.fire({
+      title: 'Import Limit Notice',
+      text: 'The maximum uploading of data is 1999 rows per file. Please ensure your CSV does not exceed this limit to avoid timeouts.',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'OK',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#16a34a'
+    }).then((result) => {
+      if (result.isConfirmed && fileInputRef.current) {
+         fileInputRef.current.click();
+      }
+    });
   };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -966,9 +987,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </button>
                     </form>
                     <div className="mt-6 pt-6 border-t border-slate-700 space-y-3">
-                      <div className="relative">
+                      <div>
                         <button 
                           disabled={isImporting}
+                          onClick={handleImportClick}
                           className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg transition flex items-center justify-center gap-2 border border-slate-600 cursor-pointer"
                         >
                           {isImporting ? <span className="animate-spin">⏳</span> : <FileSpreadsheet size={18} />}
@@ -976,8 +998,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         </button>
                         <input 
                           type="file" 
+                          ref={fileInputRef}
                           accept=".csv"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          className="hidden"
                           onChange={handleFileImport}
                           disabled={isImporting}
                         />
