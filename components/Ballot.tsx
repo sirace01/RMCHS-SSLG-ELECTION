@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Swal from 'sweetalert2';
 import { CheckCircle2, Circle, AlertTriangle, Send, LogOut, ChevronRight, X, ZoomIn } from 'lucide-react';
 import { Voter, Candidate, POSITIONS_ORDER, VoteSelection } from '../types';
 import { getCandidates, submitBallot, getElectionStatus } from '../lib/supabase'; // Real functions
@@ -90,7 +91,12 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
       // Final check
       const isOpen = await getElectionStatus();
       if (!isOpen) {
-        alert("The election has just been CLOSED by the administrator. Your vote cannot be accepted.");
+        await Swal.fire({
+          icon: 'error',
+          title: 'Election Closed',
+          text: 'The election has just been CLOSED by the administrator. Your vote cannot be accepted.',
+          confirmButtonColor: '#16a34a'
+        });
         setIsSubmitting(false);
         setIsConfirming(false);
         onLogout();
@@ -101,12 +107,22 @@ const Ballot: React.FC<BallotProps> = ({ voter, onVoteSubmitted, onLogout }) => 
       if (success) {
         onVoteSubmitted();
       } else {
-        alert("Failed to submit vote. Please try again or contact an admin.");
+        Swal.fire({
+          icon: 'error',
+          title: 'Submission Failed',
+          text: 'Failed to submit vote. Please try again or contact an admin.',
+          confirmButtonColor: '#ef4444'
+        });
         setIsSubmitting(false);
         setIsConfirming(false);
       }
     } catch (e) {
-      alert("An unexpected error occurred.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred.',
+        confirmButtonColor: '#ef4444'
+      });
       setIsSubmitting(false);
       setIsConfirming(false);
     }

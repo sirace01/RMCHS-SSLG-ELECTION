@@ -6,9 +6,15 @@
     <title>SSLG Voting System | RMCHS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
       body {
         font-family: 'Inter', sans-serif;
+      }
+      /* Custom SweetAlert Overrides to match theme */
+      div:where(.swal2-container) div:where(.swal2-popup) {
+        font-family: 'Inter', sans-serif !important;
+        border-radius: 1rem !important;
       }
     </style>
   <script type="importmap">
@@ -22,7 +28,8 @@
     "framer-motion": "https://esm.sh/framer-motion@^12.27.5",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
-    "clsx": "https://esm.sh/clsx@^2.1.1"
+    "clsx": "https://esm.sh/clsx@^2.1.1",
+    "sweetalert2": "https://esm.sh/sweetalert2@11.7.3"
   }
 }
 </script>

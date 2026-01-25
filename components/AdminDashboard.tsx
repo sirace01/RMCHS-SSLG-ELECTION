@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Swal from 'sweetalert2';
 import { 
   getCandidates, 
   getAllVoters, 
@@ -134,6 +135,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // --- HELPER: Toast Notification ---
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  });
+
   // --- DATA FETCHING ---
 
   // Separate function for School Year to avoid overwriting user input during polling
@@ -267,22 +281,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   
   const handleToggleElection = async () => {
      const action = isElectionOpen ? 'CLOSE' : 'OPEN';
-     if (!window.confirm(`Are you sure you want to ${action} the election?\n${isElectionOpen ? 'Voters will no longer be able to log in or cast votes.' : 'Voters will be allowed to cast votes.'}`)) {
-       return;
-     }
+     const result = await Swal.fire({
+       title: isElectionOpen ? 'Close Election?' : 'Open Election?',
+       text: isElectionOpen 
+         ? 'Voters will no longer be able to log in or cast votes.' 
+         : 'Voters will be allowed to cast votes immediately.',
+       icon: isElectionOpen ? 'warning' : 'question',
+       showCancelButton: true,
+       confirmButtonColor: isElectionOpen ? '#ef4444' : '#16a34a',
+       cancelButtonColor: '#64748b',
+       confirmButtonText: isElectionOpen ? 'Yes, Close it!' : 'Yes, Open it!'
+     });
+
+     if (!result.isConfirmed) return;
      
      setIsTogglingStatus(true);
      try {
        await setElectionStatus(!isElectionOpen);
        setIsElectionOpen(!isElectionOpen);
        fetchData();
+       Toast.fire({
+         icon: 'success',
+         title: `Election is now ${action}D`
+       });
      } catch (e: any) {
        console.error(e);
        const msg = e.message || "";
        if (msg.includes("schema cache") || msg.includes("does not exist") || msg.includes("config")) {
           setShowSqlHelp(true);
        } else {
-          alert(`Failed to update election status. \n\nError: ${msg}`);
+          Swal.fire('Error', `Failed to update status: ${msg}`, 'error');
        }
      } finally {
        setIsTogglingStatus(false);
@@ -293,11 +321,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setIsSavingYear(true);
     try {
       await setSchoolYear(schoolYear);
-      // Optional: Re-fetch to confirm save, but local state is already accurate to user intent
+      Toast.fire({ icon: 'success', title: 'School Year Saved' });
     } catch (e: any) {
       console.error("Failed to save school year", e);
-      // Revert if failed? Or just let user know
-      alert("Failed to save School Year. Check internet or permissions.");
+      Swal.fire('Error', 'Failed to save School Year. Check connection.', 'error');
     } finally {
       setIsSavingYear(false);
     }
@@ -312,17 +339,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminLrn) {
-      alert("Admin Username/LRN cannot be empty.");
+      Swal.fire('Validation Error', 'Admin Username/LRN cannot be empty.', 'warning');
       return;
     }
     
     // Only validate password if one is entered
     if (newPassword && newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      Swal.fire('Validation Error', 'Passwords do not match!', 'warning');
       return;
     }
     if (newPassword && newPassword.length < 6) {
-      alert("Password must be at least 6 characters.");
+      Swal.fire('Validation Error', 'Password must be at least 6 characters.', 'warning');
       return;
     }
 
@@ -330,12 +357,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     try {
       // Pass undefined if password is empty so it doesn't update
       await updateAdminCredentials(adminLrn, newPassword || undefined);
-      alert("Admin credentials updated successfully.");
       setShowSettingsModal(false);
       setNewPassword("");
       setConfirmPassword("");
+      Swal.fire({
+        title: 'Success!',
+        text: 'Admin credentials updated successfully.',
+        icon: 'success',
+        confirmButtonColor: '#16a34a'
+      });
     } catch (e: any) {
-      alert("Failed to update credentials: " + e.message);
+      Swal.fire('Error', 'Failed to update credentials: ' + e.message, 'error');
     } finally {
       setIsUpdatingSettings(false);
     }
@@ -343,7 +375,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(SETUP_SQL_SCRIPT);
-    alert("SQL Code copied to clipboard! Now paste it in Supabase SQL Editor.");
+    Toast.fire({ icon: 'success', title: 'SQL Copied to Clipboard' });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,9 +407,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setImageFile(null);
       setImagePreview(null);
       fetchData();
-      alert("Candidate added successfully!");
+      Toast.fire({ icon: 'success', title: 'Candidate added successfully' });
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      Swal.fire('Error', error.message, 'error');
     } finally {
       setIsAdding(false);
     }
@@ -390,9 +422,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       await addVoter(voterForm);
       setVoterForm({ lrn: '', first_name: '', last_name: '', grade_level: 7 });
       fetchData();
-      alert("Voter registered successfully.");
+      Toast.fire({ icon: 'success', title: 'Voter registered successfully' });
     } catch (error) {
-      alert("Error adding voter. LRN might be duplicate.");
+      Swal.fire('Duplicate Error', 'This LRN is already registered.', 'error');
     } finally {
       setIsAdding(false);
     }
@@ -424,17 +456,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         }
         if (votersToImport.length > 0) {
           const { added, skipped } = await bulkImportVoters(votersToImport);
-          let message = `Import Complete!\n\nSuccessfully Added: ${added}`;
-          if (skipped > 0) {
-            message += `\nSkipped (Already Exists): ${skipped}`;
-          }
-          alert(message);
+          
+          Swal.fire({
+            title: 'Import Complete',
+            html: `
+              <div class="text-left bg-slate-50 p-4 rounded-lg">
+                <p class="text-green-600 font-bold mb-1">✓ Added: ${added}</p>
+                <p class="text-slate-500 text-sm">↔ Skipped (Duplicates): ${skipped}</p>
+              </div>
+            `,
+            icon: 'success',
+            confirmButtonColor: '#16a34a'
+          });
+          
           fetchData();
         } else {
-          alert("No valid data found in CSV.");
+          Swal.fire('Invalid CSV', 'No valid data found in file.', 'warning');
         }
       } catch (err) {
-        alert("Error processing CSV file.");
+        Swal.fire('Import Error', 'Failed to process CSV file.', 'error');
       } finally {
         setIsImporting(false);
         e.target.value = ''; 
@@ -456,13 +496,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   };
 
   const handleDelete = async (id: string, type: 'candidate' | 'voter') => {
-    if(window.confirm(`Are you sure you want to delete this ${type}?`)) {
+    const result = await Swal.fire({
+       title: 'Are you sure?',
+       text: `You are about to delete this ${type}. This action cannot be undone.`,
+       icon: 'warning',
+       showCancelButton: true,
+       confirmButtonColor: '#ef4444',
+       cancelButtonColor: '#64748b',
+       confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         if (type === 'candidate') await deleteCandidate(id);
         else await deleteVoter(id);
         fetchData();
+        Toast.fire({ icon: 'success', title: 'Deleted successfully' });
       } catch (e) {
-        alert("Failed to delete. It might be linked to existing votes.");
+        Swal.fire('Delete Failed', 'Item might be linked to existing votes.', 'error');
       }
     }
   };

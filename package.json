@@ -16,7 +16,8 @@
     "framer-motion": "^12.27.5",
     "lucide-react": "^0.562.0",
     "tailwind-merge": "^3.4.0",
-    "clsx": "^2.1.1"
+    "clsx": "^2.1.1",
+    "sweetalert2": "11.7.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
