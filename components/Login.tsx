@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
+import { Lock, User, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
 import { getVoterByLrn, getElectionStatus, verifyAdminCredentials, verifySuperAdminCredentials } from '../lib/supabase';
 import { Voter, Branding } from '../types';
@@ -15,6 +15,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdminLogin, branding }) => {
   const [lrn, setLrn] = useState('');
   const [passcode, setPasscode] = useState('');
+  const [showPasscode, setShowPasscode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -108,14 +109,24 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdmi
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Lock size={16} /> Passcode
               </label>
-              <input
-                type="text"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value.toUpperCase())}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors outline-none text-lg text-center tracking-widest font-mono uppercase"
-                placeholder="XXXXXAA"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPasscode ? "text" : "password"}
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value.toUpperCase())}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors outline-none text-lg text-center tracking-widest font-mono uppercase pr-10"
+                  placeholder="XXXXXAA"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasscode(!showPasscode)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  tabIndex={-1}
+                >
+                  {showPasscode ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               <p className="text-xs text-gray-500 text-center">
                 Format: Last 5 LRN + 1st Letter First Name + 1st Letter Last Name
               </p>
