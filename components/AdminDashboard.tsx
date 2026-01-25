@@ -716,41 +716,82 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
               </div>
 
-              {/* Charts Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 print:grid-cols-2 print:gap-8">
+              {/* --- PRINT ONLY: WINNERS LIST --- */}
+              <div className="hidden print:block mb-8 break-inside-avoid">
+                 <h2 className="text-xl font-bold text-center mb-6 uppercase border-b-2 border-black pb-2">List of Winning Candidates</h2>
+                 <table className="w-full text-sm text-left border-collapse border border-gray-400">
+                    <thead>
+                       <tr className="bg-gray-100 border-b border-gray-400">
+                          <th className="border border-gray-400 px-2 py-1 uppercase">Position</th>
+                          <th className="border border-gray-400 px-2 py-1 uppercase">Winner</th>
+                          <th className="border border-gray-400 px-2 py-1 uppercase">Partylist</th>
+                          <th className="border border-gray-400 px-2 py-1 text-right uppercase">Total Votes</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                       {winners.map((win, idx) => (
+                          <tr key={idx} className="border-b border-gray-400">
+                             <td className="border border-gray-400 px-2 py-1 font-bold">{win.position}</td>
+                             <td className="border border-gray-400 px-2 py-1">{win.candidate ? win.candidate.name : "No Candidate"}</td>
+                             <td className="border border-gray-400 px-2 py-1">{win.candidate?.partylist || "-"}</td>
+                             <td className="border border-gray-400 px-2 py-1 text-right font-bold">{win.candidate?.votes || 0}</td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+
+              {/* --- PRINT ONLY: DETAILED BREAKDOWN --- */}
+              <div className="hidden print:block">
+                 <h2 className="text-xl font-bold text-center mb-6 uppercase border-b-2 border-black pb-2">Detailed Vote Breakdown per Grade Level</h2>
+                 <div className="space-y-6">
+                    {Object.entries(data).map(([pos, candidates]) => (
+                       <div key={pos} className="break-inside-avoid">
+                          <h3 className="font-bold text-lg mb-2 uppercase">{pos}</h3>
+                          <table className="w-full text-xs text-left border-collapse border border-gray-400">
+                             <thead>
+                                <tr className="bg-gray-100 border-b border-gray-400">
+                                   <th className="border border-gray-400 px-2 py-1 w-1/3">Candidate</th>
+                                   {GRADE_LEVELS.map(g => (
+                                      <th key={g} className="border border-gray-400 px-1 py-1 text-center">Gr.{g}</th>
+                                   ))}
+                                   <th className="border border-gray-400 px-2 py-1 text-right font-bold">Total</th>
+                                </tr>
+                             </thead>
+                             <tbody>
+                                {candidates.map(c => (
+                                   <tr key={c.id}>
+                                      <td className="border border-gray-400 px-2 py-1">{c.name}</td>
+                                      {GRADE_LEVELS.map(g => (
+                                         <td key={g} className="border border-gray-400 px-1 py-1 text-center text-gray-600">
+                                            {c.grades[g] || 0}
+                                         </td>
+                                      ))}
+                                      <td className="border border-gray-400 px-2 py-1 text-right font-bold">{c.votes}</td>
+                                   </tr>
+                                ))}
+                             </tbody>
+                          </table>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+
+              {/* Charts Grid (HIDDEN ON PRINT) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 print:hidden">
                 {Object.keys(data).length === 0 && (
                   <div className="col-span-1 md:col-span-2 text-center py-20 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                     {isLoadingData ? "Loading results..." : "No candidates or votes yet."}
                   </div>
                 )}
                 {Object.entries(data).map(([pos, chartData]: [string, ChartDataPoint[]]) => (
-                  <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl print:bg-white print:border-none print:shadow-none print:break-inside-avoid">
+                  <div key={pos} className="bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-xl">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-200 print:text-black uppercase border-b-2 border-black pb-1 w-full">{pos}</h3>
-                    </div>
-                    
-                    {/* Print Table View (Better for static reports) */}
-                    <div className="hidden print:block">
-                        <table className="w-full text-sm text-left">
-                           <thead>
-                              <tr className="border-b border-black">
-                                 <th className="py-1">Candidate</th>
-                                 <th className="py-1 text-right">Votes</th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                              {chartData.map((c) => (
-                                 <tr key={c.id} className="border-b border-gray-300">
-                                    <td className="py-1">{c.name} <span className="text-xs text-gray-500">({c.partylist || "Ind."})</span></td>
-                                    <td className="py-1 text-right font-bold">{c.votes}</td>
-                                 </tr>
-                              ))}
-                           </tbody>
-                        </table>
+                      <h3 className="text-base sm:text-lg font-bold text-slate-200 uppercase border-b-2 border-slate-600 pb-1 w-full">{pos}</h3>
                     </div>
 
                     {/* Web Chart View */}
-                    <div className="h-64 w-full print:hidden">
+                    <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
