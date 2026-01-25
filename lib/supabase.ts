@@ -124,7 +124,7 @@ export const addVoter = async (voterData: Partial<Voter>): Promise<Voter | null>
 };
 
 // 6. ADMIN: Bulk Import Voters
-export const bulkImportVoters = async (votersData: any[]): Promise<void> => {
+export const bulkImportVoters = async (votersData: any[]): Promise<{ added: number, skipped: number }> => {
   // Process data to include generated passcodes
   const processedData = votersData.map(v => ({
     lrn: v.lrn,
@@ -135,11 +135,19 @@ export const bulkImportVoters = async (votersData: any[]): Promise<void> => {
     has_voted: false
   }));
 
-  const { error } = await supabase
+  // Using UPSERT with ignoreDuplicates: true
+  // This will insert new LRNs and silently skip existing LRNs
+  const { data, error } = await supabase
     .from('voters')
-    .insert(processedData);
+    .upsert(processedData, { onConflict: 'lrn', ignoreDuplicates: true })
+    .select();
 
   if (error) throw error;
+
+  const addedCount = data ? data.length : 0;
+  const skippedCount = votersData.length - addedCount;
+
+  return { added: addedCount, skipped: skippedCount };
 };
 
 // 7. ADMIN: Delete Voter

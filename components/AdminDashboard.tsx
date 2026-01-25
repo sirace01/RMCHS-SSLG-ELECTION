@@ -423,8 +423,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           }
         }
         if (votersToImport.length > 0) {
-          await bulkImportVoters(votersToImport);
-          alert(`Successfully imported ${votersToImport.length} voters.`);
+          const { added, skipped } = await bulkImportVoters(votersToImport);
+          let message = `Import Complete!\n\nSuccessfully Added: ${added}`;
+          if (skipped > 0) {
+            message += `\nSkipped (Already Exists): ${skipped}`;
+          }
+          alert(message);
           fetchData();
         } else {
           alert("No valid data found in CSV.");
