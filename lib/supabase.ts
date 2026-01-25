@@ -119,28 +119,43 @@ export const addVoter = async (voterData: Partial<Voter>): Promise<Voter | null>
   return data;
 };
 
-// 6. ADMIN: Bulk Import Voters
+// 6. ADMIN: Bulk Import Voters (Batched)
 export const bulkImportVoters = async (votersData: any[]): Promise<{ added: number, skipped: number }> => {
+  // 1. Process all data objects first
   const processedData = votersData.map(v => ({
     lrn: v.lrn,
     first_name: v.first_name,
     last_name: v.last_name,
-    grade_level: parseInt(v.grade_level),
+    grade_level: parseInt(v.grade_level) || 0,
     passcode: generatePasscode(v.lrn, v.first_name, v.last_name),
     has_voted: false
   }));
 
-  const { data, error } = await supabase
-    .from('voters')
-    .upsert(processedData, { onConflict: 'lrn', ignoreDuplicates: true })
-    .select();
+  // 2. Upload in batches to avoid payload limits
+  const BATCH_SIZE = 100;
+  let totalAdded = 0;
 
-  if (error) throw error;
+  for (let i = 0; i < processedData.length; i += BATCH_SIZE) {
+    const chunk = processedData.slice(i, i + BATCH_SIZE);
 
-  const addedCount = data ? data.length : 0;
-  const skippedCount = votersData.length - addedCount;
+    const { data, error } = await supabase
+      .from('voters')
+      .upsert(chunk, { onConflict: 'lrn', ignoreDuplicates: true })
+      .select();
 
-  return { added: addedCount, skipped: skippedCount };
+    if (error) {
+      console.error(`Batch import error (batch ${i}):`, error);
+      throw new Error(`Failed to import batch starting at row ${i + 1}. Details: ${error.message}`);
+    }
+
+    if (data) {
+      totalAdded += data.length;
+    }
+  }
+
+  const skippedCount = processedData.length - totalAdded;
+
+  return { added: totalAdded, skipped: skippedCount };
 };
 
 // 7. ADMIN: Delete Voter
