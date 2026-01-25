@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import { Voter, Candidate, VoteSelection, Vote } from '../types';
+import { Voter, Candidate, VoteSelection, Vote, Branding, DEFAULT_SCHOOL_NAME, DEFAULT_SCHOOL_LOGO, DEFAULT_SSLG_LOGO } from '../types';
 import { generatePasscode } from './utils';
 
 // Access environment variables
-// Use provided credentials as default fallback if env vars are missing
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aqcwibfanlyhpwmtqdgq.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxY3dpYmZhbmx5aHB3bXRxZGdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NjI1OTUsImV4cCI6MjA4NDUzODU5NX0.cpGVwPNOWaShEDzhyIu18QSczDo6XHhhZi0gT3uQ5dk';
 
@@ -35,7 +34,6 @@ export const getVoterByLrn = async (lrn: string): Promise<Voter | null> => {
     .single();
 
   if (error) {
-    // If error code is 'PGRST116', it means no rows found (invalid LRN)
     if (error.code !== 'PGRST116') console.error('Error fetching voter:', error);
     return null;
   }
@@ -58,28 +56,24 @@ export const getCandidates = async (): Promise<Candidate[]> => {
 // 3. BALLOT: Submit Vote (Transaction-like)
 export const submitBallot = async (voter: Voter, selections: VoteSelection): Promise<boolean> => {
   try {
-    // Check if election is open before submitting
     const isOpen = await getElectionStatus();
     if (!isOpen) {
       console.warn("Attempted to vote while election is closed.");
       return false;
     }
 
-    // A. Create the votes array
     const votesToInsert = Object.entries(selections).map(([pos, candidateId]) => ({
       position: pos,
       candidate_id: candidateId === 'ABSTAIN' ? null : candidateId,
       grade_level: voter.grade_level
     }));
 
-    // B. Insert votes
     const { error: voteError } = await supabase
       .from('votes')
       .insert(votesToInsert);
 
     if (voteError) throw voteError;
 
-    // C. Mark voter as having voted
     const { error: updateError } = await supabase
       .from('voters')
       .update({ has_voted: true })
@@ -110,7 +104,6 @@ export const getAllVoters = async (): Promise<Voter[]> => {
 
 // 5. ADMIN: Add Single Voter
 export const addVoter = async (voterData: Partial<Voter>): Promise<Voter | null> => {
-  // Generate passcode automatically
   const passcode = generatePasscode(voterData.lrn!, voterData.first_name!, voterData.last_name!);
   
   const { data, error } = await supabase
@@ -128,7 +121,6 @@ export const addVoter = async (voterData: Partial<Voter>): Promise<Voter | null>
 
 // 6. ADMIN: Bulk Import Voters
 export const bulkImportVoters = async (votersData: any[]): Promise<{ added: number, skipped: number }> => {
-  // Process data to include generated passcodes
   const processedData = votersData.map(v => ({
     lrn: v.lrn,
     first_name: v.first_name,
@@ -138,8 +130,6 @@ export const bulkImportVoters = async (votersData: any[]): Promise<{ added: numb
     has_voted: false
   }));
 
-  // Using UPSERT with ignoreDuplicates: true
-  // This will insert new LRNs and silently skip existing LRNs
   const { data, error } = await supabase
     .from('voters')
     .upsert(processedData, { onConflict: 'lrn', ignoreDuplicates: true })
@@ -177,7 +167,7 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
-// 10. ADMIN: Get Vote Counts (Legacy simple count)
+// 10. ADMIN: Get Vote Counts
 export const getVoteCounts = async (): Promise<Record<string, number>> => {
   const { data, error } = await supabase
     .from('votes')
@@ -188,7 +178,6 @@ export const getVoteCounts = async (): Promise<Record<string, number>> => {
     return {};
   }
 
-  // Aggregate locally
   const counts: Record<string, number> = {};
   data.forEach((vote: any) => {
     if (vote.candidate_id) {
@@ -199,7 +188,7 @@ export const getVoteCounts = async (): Promise<Record<string, number>> => {
   return counts;
 };
 
-// 11. ADMIN: Get All Votes Raw (For detailed analytics/print)
+// 11. ADMIN: Get All Votes Raw
 export const getAllVotes = async (): Promise<Vote[]> => {
   const { data, error } = await supabase
     .from('votes')
@@ -213,29 +202,30 @@ export const getAllVotes = async (): Promise<Vote[]> => {
   return data as Vote[];
 };
 
-// 12. STORAGE: Upload Image
-export const uploadCandidatePhoto = async (file: File): Promise<string> => {
+// 12. STORAGE: Generic Upload (Photos/Logos)
+export const uploadFile = async (file: File, bucket: string = 'candidate-photos'): Promise<string> => {
   const fileExt = file.name.split('.').pop();
-  // Use timestamp and random string to ensure unique filenames
   const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-  const filePath = `${fileName}`;
-
+  
   const { error: uploadError } = await supabase.storage
-    .from('candidate-photos')
-    .upload(filePath, file, {
-       upsert: false
-    });
+    .from(bucket)
+    .upload(fileName, file, { upsert: false });
 
   if (uploadError) {
-    console.error('Error uploading image:', uploadError);
-    throw uploadError; // Throwing error so UI can catch it
+    console.error('Error uploading file:', uploadError);
+    throw uploadError;
   }
 
   const { data } = supabase.storage
-    .from('candidate-photos')
-    .getPublicUrl(filePath);
+    .from(bucket)
+    .getPublicUrl(fileName);
 
   return data.publicUrl;
+};
+
+// Legacy Wrapper for backward compatibility
+export const uploadCandidatePhoto = async (file: File): Promise<string> => {
+  return uploadFile(file, 'candidate-photos');
 };
 
 // 13. CONFIG: Get Election Status
@@ -247,14 +237,10 @@ export const getElectionStatus = async (): Promise<boolean> => {
       .eq('key', 'election_status')
       .single();
 
-    if (error) {
-       console.error("Error checking election status (table might be missing):", error);
-       return true; 
-    }
+    if (error) return true; 
     if (!data) return true;
     return data.value === 'OPEN';
   } catch (e) {
-    console.error("Unexpected error in getElectionStatus:", e);
     return true; 
   }
 };
@@ -272,14 +258,8 @@ export const setElectionStatus = async (isOpen: boolean): Promise<void> => {
 // 15. CONFIG: Get School Year
 export const getSchoolYear = async (): Promise<string> => {
   try {
-    const { data, error } = await supabase
-      .from('config')
-      .select('value')
-      .eq('key', 'school_year')
-      .single();
-
-    if (error || !data) return '2024-2025';
-    return data.value;
+    const { data } = await supabase.from('config').select('value').eq('key', 'school_year').single();
+    return data?.value || '2024-2025';
   } catch (e) {
     return '2024-2025';
   }
@@ -300,18 +280,16 @@ export const verifyAdminCredentials = async (lrn: string, passcode: string): Pro
     const { data: lrnData } = await supabase.from('config').select('value').eq('key', 'admin_lrn').single();
     const { data: passData } = await supabase.from('config').select('value').eq('key', 'admin_password').single();
     
-    // Use DB value or fall back to default
     const correctLrn = lrnData?.value || DEFAULT_ADMIN_LRN;
     const correctPass = passData?.value || DEFAULT_ADMIN_PASS;
 
     return lrn === correctLrn && passcode === correctPass;
   } catch (e) {
-    // If DB fails, fallback to default
     return lrn === DEFAULT_ADMIN_LRN && passcode === DEFAULT_ADMIN_PASS;
   }
 };
 
-// 18. AUTH: Get Admin LRN (for display)
+// 18. AUTH: Get Admin LRN
 export const getAdminLrn = async (): Promise<string> => {
   try {
     const { data } = await supabase.from('config').select('value').eq('key', 'admin_lrn').single();
@@ -321,21 +299,15 @@ export const getAdminLrn = async (): Promise<string> => {
   }
 };
 
-// 19. AUTH: Update Admin Credentials (LRN + Password)
+// 19. AUTH: Update Admin Credentials
 export const updateAdminCredentials = async (lrn: string, password?: string): Promise<void> => {
   const updates = [{ key: 'admin_lrn', value: lrn }];
   if (password) {
     updates.push({ key: 'admin_password', value: password });
   }
-  
-  const { error } = await supabase
-    .from('config')
-    .upsert(updates);
-  
+  const { error } = await supabase.from('config').upsert(updates);
   if (error) throw error;
 };
-
-// --- SUPER ADMIN FUNCTIONS ---
 
 // 20. AUTH: Verify Super Admin
 export const verifySuperAdminCredentials = async (user: string, pass: string): Promise<boolean> => {
@@ -354,24 +326,53 @@ export const verifySuperAdminCredentials = async (user: string, pass: string): P
 
 // 21. SUPER: Wipe All Voters
 export const wipeAllVoters = async (): Promise<void> => {
-  // Assuming a generic condition to match all rows since Supabase doesn't allow empty delete
   const { error } = await supabase.from('voters').delete().neq('lrn', '000000');
   if (error) throw error;
 };
 
-// 22. SUPER: Wipe All Candidates (Must delete votes first)
+// 22. SUPER: Wipe All Candidates
 export const wipeAllCandidates = async (): Promise<void> => {
-  // First, delete all votes to avoid foreign key constraints
   await supabase.from('votes').delete().neq('grade_level', 0);
-  
-  // Then delete candidates
   const { error } = await supabase.from('candidates').delete().neq('position', 'INVALID');
   if (error) throw error;
 };
 
-// 23. SUPER: Reset Everything (Voters, Candidates, Votes)
+// 23. SUPER: Reset Everything
 export const factoryResetElection = async (): Promise<void> => {
   await supabase.from('votes').delete().neq('grade_level', 0);
   await supabase.from('candidates').delete().neq('position', 'INVALID');
   await supabase.from('voters').delete().neq('lrn', '000000');
+};
+
+// 24. SUPER: Get Branding Config
+export const getBrandingConfig = async (): Promise<Branding> => {
+  try {
+    const { data: nameData } = await supabase.from('config').select('value').eq('key', 'school_name').single();
+    const { data: logoData } = await supabase.from('config').select('value').eq('key', 'school_logo_url').single();
+    const { data: sslgData } = await supabase.from('config').select('value').eq('key', 'sslg_logo_url').single();
+
+    return {
+      school_name: nameData?.value || DEFAULT_SCHOOL_NAME,
+      school_logo_url: logoData?.value || DEFAULT_SCHOOL_LOGO,
+      sslg_logo_url: sslgData?.value || DEFAULT_SSLG_LOGO
+    };
+  } catch (e) {
+    return {
+      school_name: DEFAULT_SCHOOL_NAME,
+      school_logo_url: DEFAULT_SCHOOL_LOGO,
+      sslg_logo_url: DEFAULT_SSLG_LOGO
+    };
+  }
+};
+
+// 25. SUPER: Update Branding Config
+export const updateBrandingConfig = async (branding: Branding): Promise<void> => {
+  const updates = [
+    { key: 'school_name', value: branding.school_name },
+    { key: 'school_logo_url', value: branding.school_logo_url },
+    { key: 'sslg_logo_url', value: branding.sslg_logo_url }
+  ];
+  
+  const { error } = await supabase.from('config').upsert(updates);
+  if (error) throw error;
 };

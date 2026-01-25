@@ -5,31 +5,23 @@ import {
   getCandidates, 
   getAllVoters, 
   getAllVotes,
-  addCandidate, 
-  deleteCandidate, 
-  addVoter, 
-  deleteVoter, 
-  bulkImportVoters,
-  uploadCandidatePhoto,
-  getElectionStatus,
-  setElectionStatus,
-  getSchoolYear,
-  setSchoolYear,
-  getAdminLrn,
   updateAdminCredentials,
   wipeAllVoters,
   wipeAllCandidates,
-  factoryResetElection
+  factoryResetElection,
+  updateBrandingConfig,
+  uploadFile
 } from '../lib/supabase';
-import { Candidate, Voter, POSITIONS_ORDER } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings, Siren, AlertTriangle } from 'lucide-react';
+import { Candidate, Voter, POSITIONS_ORDER, Branding } from '../types';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings, Siren, AlertTriangle, PenTool } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
   onLogout: () => void;
+  branding?: Branding;
 }
 
-type Tab = 'canvassing' | 'candidates' | 'voters' | 'danger';
+type Tab = 'canvassing' | 'candidates' | 'voters' | 'danger' | 'branding';
 
 interface ChartDataPoint {
   name: string;
@@ -42,7 +34,6 @@ interface ChartDataPoint {
 }
 
 const DEFAULT_PLACEHOLDER = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
-const GRADE_LEVELS: string[] = ['7', '8', '9', '10', '11', '12'];
 
 const SETUP_SQL_SCRIPT = `-- Run this in Supabase SQL Editor to fix the error
 
@@ -69,17 +60,17 @@ CREATE TABLE IF NOT EXISTS config (
 -- 4. Seed Default Values
 INSERT INTO config (key, value) VALUES ('election_status', 'OPEN') ON CONFLICT DO NOTHING;
 INSERT INTO config (key, value) VALUES ('school_year', '2024-2025') ON CONFLICT DO NOTHING;
--- Admin Credentials (LRN: 111111111111, Pass: SSLGRMCHS@2026)
 INSERT INTO config (key, value) VALUES ('admin_lrn', '111111111111') ON CONFLICT DO NOTHING;
 INSERT INTO config (key, value) VALUES ('admin_password', 'SSLGRMCHS@2026') ON CONFLICT DO NOTHING;
--- Super Admin Credentials (Username: SUPERADMIN, Pass: ADMINSUPER)
 INSERT INTO config (key, value) VALUES ('superadmin_username', 'SUPERADMIN') ON CONFLICT DO NOTHING;
 INSERT INTO config (key, value) VALUES ('superadmin_password', 'ADMINSUPER') ON CONFLICT DO NOTHING;
+-- Branding Defaults
+INSERT INTO config (key, value) VALUES ('school_name', 'Ramon Magsaysay (Cubao) High School') ON CONFLICT DO NOTHING;
+INSERT INTO config (key, value) VALUES ('school_logo_url', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyAvwcGMAaV6-A54QZA1rpKFw6vSBXTOJ8AQ&s') ON CONFLICT DO NOTHING;
+INSERT INTO config (key, value) VALUES ('sslg_logo_url', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROg9KNTPLlAuGyuecZQ--Vm9XwxY6So7VRYw&s') ON CONFLICT DO NOTHING;
 
 -- 5. Enable RLS and Grant Permissions
 ALTER TABLE config ENABLE ROW LEVEL SECURITY;
-
--- Grant access to anon (public) and authenticated users
 GRANT ALL ON TABLE config TO anon, authenticated, service_role;
 
 -- 6. Config Policies
@@ -91,7 +82,7 @@ CREATE POLICY "Public read config" ON config FOR SELECT USING (true);
 CREATE POLICY "Public update config" ON config FOR UPDATE USING (true) WITH CHECK (true);
 CREATE POLICY "Public insert config" ON config FOR INSERT WITH CHECK (true);`;
 
-const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, branding }) => {
   const [activeTab, setActiveTab] = useState<Tab>('danger');
   const [data, setData] = useState<Record<string, ChartDataPoint[]>>({});
   const [turnout, setTurnout] = useState({ voted: 0, total: 0 });
@@ -102,6 +93,17 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   
   const [showSqlHelp, setShowSqlHelp] = useState(false);
+
+  // Branding State
+  const [brandForm, setBrandForm] = useState<Branding>({
+    school_name: '',
+    school_logo_url: '',
+    sslg_logo_url: ''
+  });
+  const [schoolLogoFile, setSchoolLogoFile] = useState<File | null>(null);
+  const [sslgLogoFile, setSslgLogoFile] = useState<File | null>(null);
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+
   const Toast = Swal.mixin({
     toast: true,
     position: 'top-end',
@@ -181,6 +183,13 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Initialize form with current branding when it loads
+  useEffect(() => {
+    if (branding) {
+      setBrandForm(branding);
+    }
+  }, [branding]);
+
   const handleUpdateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminLrn) return Swal.fire('Error', 'Username cannot be empty', 'error');
@@ -193,6 +202,36 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       Swal.fire('Error', e.message, 'error');
     } finally {
       setIsUpdatingSettings(false);
+    }
+  };
+
+  const handleSaveBranding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingBranding(true);
+    try {
+      let schoolLogoUrl = brandForm.school_logo_url;
+      let sslgLogoUrl = brandForm.sslg_logo_url;
+
+      if (schoolLogoFile) {
+        schoolLogoUrl = await uploadFile(schoolLogoFile);
+      }
+      if (sslgLogoFile) {
+        sslgLogoUrl = await uploadFile(sslgLogoFile);
+      }
+
+      await updateBrandingConfig({
+        school_name: brandForm.school_name,
+        school_logo_url: schoolLogoUrl,
+        sslg_logo_url: sslgLogoUrl
+      });
+
+      Swal.fire('Success', 'School Branding Updated. Changes will reflect on next reload.', 'success');
+      setSchoolLogoFile(null);
+      setSslgLogoFile(null);
+    } catch (e: any) {
+      Swal.fire('Error', 'Failed to update branding: ' + e.message, 'error');
+    } finally {
+      setIsSavingBranding(false);
     }
   };
 
@@ -257,6 +296,15 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   )}
                 >
                   <AlertTriangle size={16} /> DANGER ZONE
+                </button>
+                <button 
+                   onClick={() => setActiveTab('branding')}
+                   className={cn(
+                     "px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2",
+                     activeTab === 'branding' ? "bg-blue-600 text-white shadow-lg" : "text-blue-400 hover:bg-blue-900/30"
+                   )}
+                >
+                  <PenTool size={16} /> Branding
                 </button>
                 <button 
                   onClick={() => setActiveTab('canvassing')}
@@ -371,6 +419,87 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   </div>
                </div>
 
+            </div>
+          )}
+
+          {activeTab === 'branding' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8">
+               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 shadow-xl">
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <PenTool className="text-blue-500" /> School Branding
+                  </h2>
+                  <form onSubmit={handleSaveBranding} className="space-y-6 max-w-2xl">
+                    <div className="space-y-2">
+                       <label className="text-sm font-bold text-neutral-400">School Name</label>
+                       <input 
+                         type="text" 
+                         value={brandForm.school_name}
+                         onChange={e => setBrandForm({...brandForm, school_name: e.target.value})}
+                         className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                         placeholder="Enter School Name"
+                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* School Logo */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-neutral-400">School Logo</label>
+                        <div className="border-2 border-dashed border-neutral-700 rounded-xl p-6 flex flex-col items-center justify-center text-center relative hover:border-blue-500 transition bg-neutral-950/50">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={e => {
+                                if(e.target.files?.[0]) {
+                                   setSchoolLogoFile(e.target.files[0]);
+                                   // Preview handled by browser URL.createObjectURL or just showing file name
+                                }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          {brandForm.school_logo_url || schoolLogoFile ? (
+                             <img 
+                               src={schoolLogoFile ? URL.createObjectURL(schoolLogoFile) : brandForm.school_logo_url} 
+                               className="w-24 h-24 object-contain mb-2" 
+                             />
+                          ) : <ImageIcon className="w-12 h-12 text-neutral-600 mb-2" />}
+                          <span className="text-xs text-neutral-500">{schoolLogoFile ? "New File Selected" : "Click to Change Logo"}</span>
+                        </div>
+                      </div>
+
+                      {/* SSLG Logo */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-neutral-400">SSLG / Org Logo</label>
+                        <div className="border-2 border-dashed border-neutral-700 rounded-xl p-6 flex flex-col items-center justify-center text-center relative hover:border-blue-500 transition bg-neutral-950/50">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={e => {
+                                if(e.target.files?.[0]) {
+                                   setSslgLogoFile(e.target.files[0]);
+                                }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          {brandForm.sslg_logo_url || sslgLogoFile ? (
+                             <img 
+                               src={sslgLogoFile ? URL.createObjectURL(sslgLogoFile) : brandForm.sslg_logo_url} 
+                               className="w-24 h-24 object-contain mb-2" 
+                             />
+                          ) : <ImageIcon className="w-12 h-12 text-neutral-600 mb-2" />}
+                          <span className="text-xs text-neutral-500">{sslgLogoFile ? "New File Selected" : "Click to Change Logo"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isSavingBranding}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-lg transition w-full shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                    >
+                       {isSavingBranding ? 'Uploading & Saving...' : 'Save Branding Changes'}
+                    </button>
+                  </form>
+               </div>
             </div>
           )}
 

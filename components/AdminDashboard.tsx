@@ -18,7 +18,7 @@ import {
   getAdminLrn,
   updateAdminCredentials
 } from '../lib/supabase';
-import { Candidate, Voter, POSITIONS_ORDER, SCHOOL_LOGO_URL, SSLG_LOGO_URL } from '../types';
+import { Candidate, Voter, POSITIONS_ORDER } from '../types';
 import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 

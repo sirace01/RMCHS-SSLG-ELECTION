@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import FlashScreen from './components/FlashScreen';
 import Ballot from './components/Ballot';
 import AdminDashboard from './components/AdminDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
-import { AppScreen, Voter } from './types';
+import { AppScreen, Voter, Branding, DEFAULT_SCHOOL_NAME, DEFAULT_SCHOOL_LOGO, DEFAULT_SSLG_LOGO } from './types';
+import { getBrandingConfig } from './lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 
@@ -12,6 +13,28 @@ const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(AppScreen.LOGIN);
   const [currentVoter, setCurrentVoter] = useState<Voter | null>(null);
   const [flashMode, setFlashMode] = useState<'voter' | 'admin' | 'logout'>('voter');
+  
+  // App Branding State
+  const [branding, setBranding] = useState<Branding>({
+    school_name: DEFAULT_SCHOOL_NAME,
+    school_logo_url: DEFAULT_SCHOOL_LOGO,
+    sslg_logo_url: DEFAULT_SSLG_LOGO
+  });
+
+  // Fetch branding on mount
+  useEffect(() => {
+    const fetchBranding = async () => {
+      const data = await getBrandingConfig();
+      setBranding(data);
+    };
+    fetchBranding();
+  }, []);
+
+  // Reload branding when returning from SuperAdmin (in case they changed it)
+  const refreshBranding = async () => {
+    const data = await getBrandingConfig();
+    setBranding(data);
+  };
 
   const handleLoginSuccess = (voter: Voter) => {
     setCurrentVoter(voter);
@@ -25,7 +48,7 @@ const App: React.FC = () => {
   };
 
   const handleSuperAdminLogin = () => {
-    setFlashMode('admin'); // Reuse admin flash mode for simplicity, or add a specific one
+    setFlashMode('admin');
     setCurrentScreen(AppScreen.SUPER_ADMIN);
   };
 
@@ -45,6 +68,9 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    if (currentScreen === AppScreen.SUPER_ADMIN) {
+      refreshBranding(); // Refresh logos if super admin changed them
+    }
     setFlashMode('logout');
     setCurrentScreen(AppScreen.FLASH);
   };
@@ -58,6 +84,7 @@ const App: React.FC = () => {
             onLoginSuccess={handleLoginSuccess} 
             onAdminLogin={handleAdminLogin}
             onSuperAdminLogin={handleSuperAdminLogin}
+            branding={branding}
           />
         )}
 
@@ -66,7 +93,8 @@ const App: React.FC = () => {
             key="flash" 
             voter={currentVoter}
             mode={flashMode}
-            onComplete={handleFlashComplete} 
+            onComplete={handleFlashComplete}
+            branding={branding}
           />
         )}
 
@@ -113,7 +141,7 @@ const App: React.FC = () => {
         )}
 
         {currentScreen === AppScreen.SUPER_ADMIN && (
-          <SuperAdminDashboard key="superadmin" onLogout={handleLogout} />
+          <SuperAdminDashboard key="superadmin" onLogout={handleLogout} branding={branding} />
         )}
       </AnimatePresence>
     </div>

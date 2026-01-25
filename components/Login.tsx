@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, LogIn, AlertCircle } from 'lucide-react';
 import { generatePasscode, cn } from '../lib/utils';
-import { getVoterByLrn, getElectionStatus, verifyAdminCredentials, verifySuperAdminCredentials } from '../lib/supabase'; // Import real function
-import { Voter, SCHOOL_LOGO_URL } from '../types';
+import { getVoterByLrn, getElectionStatus, verifyAdminCredentials, verifySuperAdminCredentials } from '../lib/supabase';
+import { Voter, Branding } from '../types';
 
 interface LoginProps {
   onLoginSuccess: (voter: Voter) => void;
   onAdminLogin: () => void;
   onSuperAdminLogin: () => void;
+  branding: Branding;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdminLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdminLogin, branding }) => {
   const [lrn, setLrn] = useState('');
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,35 +24,29 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdmi
     setLoading(true);
 
     try {
-      // 0. Check for Super Admin Credentials first
       const isSuper = await verifySuperAdminCredentials(lrn, passcode);
       if (isSuper) {
         onSuperAdminLogin();
         return;
       }
 
-      // 1. Check for Admin Credentials
       const isAdmin = await verifyAdminCredentials(lrn, passcode);
       if (isAdmin) {
         onAdminLogin();
         return;
       }
 
-      // 2. Check Election Status
       const isElectionOpen = await getElectionStatus();
       if (!isElectionOpen) {
          throw new Error("The election is officially CLOSED. Voting has ended.");
       }
 
-      // 3. Fetch Voter from DB
       const voter = await getVoterByLrn(lrn);
 
       if (!voter) {
         throw new Error("LRN not found in the registry.");
       }
 
-      // 4. Verify Passcode
-      // Logic: Allow exact match from DB OR the generated formula
       const generatedPasscode = generatePasscode(voter.lrn, voter.first_name, voter.last_name);
       
       const inputPass = passcode.toUpperCase();
@@ -61,7 +56,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdmi
          throw new Error("Invalid passcode. Please check your LRN and Name combination.");
       }
 
-      // 5. Check if already voted
       if (voter.has_voted) {
         throw new Error("This learner has already cast their vote.");
       }
@@ -85,12 +79,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminLogin, onSuperAdmi
         <div className="bg-green-600 p-8 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
             <img 
-              src={SCHOOL_LOGO_URL} 
-              alt="RMCHS Logo" 
+              src={branding.school_logo_url} 
+              alt="School Logo" 
               className="w-20 h-20 mx-auto rounded-full border-4 border-white shadow-lg relative z-10 bg-white object-contain"
             />
             <h1 className="mt-4 text-2xl font-bold text-white relative z-10">SSLG Voting System</h1>
-            <p className="text-green-100 text-sm relative z-10">Ramon Magsaysay (Cubao) High School</p>
+            <p className="text-green-100 text-sm relative z-10">{branding.school_name}</p>
         </div>
 
         <div className="p-8">

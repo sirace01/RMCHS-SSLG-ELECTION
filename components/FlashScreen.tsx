@@ -1,16 +1,16 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { SCHOOL_LOGO_URL, SSLG_LOGO_URL, Voter } from '../types';
+import { Voter, Branding } from '../types';
 
 interface FlashScreenProps {
   voter?: Voter | null;
   mode: 'voter' | 'admin' | 'logout';
   onComplete: () => void;
+  branding: Branding;
 }
 
-const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) => {
+const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete, branding }) => {
   useEffect(() => {
-    // Slightly faster for logout
     const duration = mode === 'logout' ? 2500 : 3500;
     const timer = setTimeout(() => {
       onComplete();
@@ -19,12 +19,11 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) =>
     return () => clearTimeout(timer);
   }, [onComplete, mode]);
 
-  // Determine Content based on mode
   let title = "WELCOME";
   let subtitle = "";
   let subtext = "";
   let loadingText = "Loading...";
-  let accentColor = "text-green-800"; // Default color
+  let accentColor = "text-green-800";
 
   if (mode === 'voter' && voter) {
     title = "WELCOME";
@@ -46,7 +45,6 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) =>
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center overflow-hidden">
-      {/* Background Decoration */}
       <motion.div 
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 20, opacity: 0.05 }}
@@ -59,9 +57,9 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) =>
           initial={{ x: -100, opacity: 0, rotate: -45 }}
           animate={{ x: 0, opacity: 1, rotate: 0 }}
           transition={{ type: "spring", bounce: 0.5, duration: 1.5 }}
-          src={SCHOOL_LOGO_URL}
+          src={branding.school_logo_url}
           alt="School Logo"
-          className="w-24 h-24 md:w-40 md:h-40 object-contain rounded-full drop-shadow-xl"
+          className="w-24 h-24 md:w-40 md:h-40 object-contain rounded-full drop-shadow-xl bg-white"
         />
         
         <motion.div 
@@ -75,9 +73,9 @@ const FlashScreen: React.FC<FlashScreenProps> = ({ voter, mode, onComplete }) =>
           initial={{ x: 100, opacity: 0, rotate: 45 }}
           animate={{ x: 0, opacity: 1, rotate: 0 }}
           transition={{ type: "spring", bounce: 0.5, duration: 1.5 }}
-          src={SSLG_LOGO_URL}
+          src={branding.sslg_logo_url}
           alt="SSLG Logo"
-          className="w-24 h-24 md:w-40 md:h-40 object-contain rounded-full drop-shadow-xl"
+          className="w-24 h-24 md:w-40 md:h-40 object-contain rounded-full drop-shadow-xl bg-white"
         />
       </div>
 

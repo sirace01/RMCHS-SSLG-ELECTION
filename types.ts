@@ -19,9 +19,15 @@ export interface Candidate {
 }
 
 export interface Vote {
-  candidate_id: string | null; // null represents abstaining logic if stored that way, or we just don't store row
+  candidate_id: string | null; 
   position: string;
   grade_level: number;
+}
+
+export interface Branding {
+  school_name: string;
+  school_logo_url: string;
+  sslg_logo_url: string;
 }
 
 export type VoteSelection = Record<string, string | 'ABSTAIN'>;
@@ -46,5 +52,6 @@ export const POSITIONS_ORDER = [
   'Grade Level Rep'
 ];
 
-export const SCHOOL_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyAvwcGMAaV6-A54QZA1rpKFw6vSBXTOJ8AQ&s";
-export const SSLG_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROg9KNTPLlAuGyuecZQ--Vm9XwxY6So7VRYw&s";
+export const DEFAULT_SCHOOL_NAME = "Ramon Magsaysay (Cubao) High School";
+export const DEFAULT_SCHOOL_LOGO = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyAvwcGMAaV6-A54QZA1rpKFw6vSBXTOJ8AQ&s";
+export const DEFAULT_SSLG_LOGO = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROg9KNTPLlAuGyuecZQ--Vm9XwxY6So7VRYw&s";
