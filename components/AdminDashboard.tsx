@@ -5,7 +5,8 @@ import {
   getCandidates, 
   getAllVoters, 
   getAllVotes,
-  addCandidate, 
+  addCandidate,
+  updateCandidate,
   deleteCandidate, 
   addVoter, 
   deleteVoter, 
@@ -19,7 +20,7 @@ import {
   updateAdminCredentials
 } from '../lib/supabase';
 import { Candidate, Voter, POSITIONS_ORDER, DEFAULT_SCHOOL_LOGO, DEFAULT_SSLG_LOGO, DEFAULT_SCHOOL_NAME } from '../types';
-import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings } from 'lucide-react';
+import { LogOut, RefreshCw, Users, BarChart3, Plus, Trash2, Upload, Image as ImageIcon, FileSpreadsheet, UserPlus, CheckCircle2, XCircle, Download, Printer, Lock, Unlock, Database, Copy, Save, Key, Shield, Settings, Pencil } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface AdminDashboardProps {
@@ -112,6 +113,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [candidateList, setCandidateList] = useState<Candidate[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Voters State
   const [voterList, setVoterList] = useState<Voter[]>([]);
@@ -390,27 +392,70 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleAddCandidate = async (e: React.FormEvent) => {
+  const handleEditClick = (candidate: Candidate) => {
+    setEditingId(candidate.id);
+    setFormData({
+      full_name: candidate.full_name,
+      position: candidate.position,
+      partylist: candidate.partylist || '',
+      grade_level: candidate.grade_level
+    });
+    setImagePreview(candidate.image_url || DEFAULT_PLACEHOLDER);
+    setImageFile(null); // Reset file input so we don't upload unless changed
+    
+    // Smooth scroll to top form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({ full_name: '', position: POSITIONS_ORDER[0], partylist: '', grade_level: undefined });
+    setImagePreview(null);
+    setImageFile(null);
+  };
+
+  const handleAddOrUpdateCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdding(true);
     try {
       if (!formData.full_name || !formData.position) return;
-      let imageUrl = DEFAULT_PLACEHOLDER;
+      
+      let imageUrl = imagePreview || DEFAULT_PLACEHOLDER;
+      
+      // If a new file is selected, upload it
       if (imageFile) {
         imageUrl = await uploadCandidatePhoto(imageFile);
       }
-      await addCandidate({
-        full_name: formData.full_name,
-        position: formData.position,
-        partylist: formData.partylist || 'Independent',
-        grade_level: formData.position === 'Grade Level Rep' ? formData.grade_level : undefined,
-        image_url: imageUrl
-      });
+
+      if (editingId) {
+        // UPDATE MODE
+        await updateCandidate(editingId, {
+          full_name: formData.full_name,
+          position: formData.position,
+          partylist: formData.partylist || 'Independent',
+          grade_level: formData.position === 'Grade Level Rep' ? formData.grade_level : undefined,
+          image_url: imageUrl
+        });
+        Toast.fire({ icon: 'success', title: 'Candidate updated successfully' });
+      } else {
+        // ADD MODE
+        await addCandidate({
+          full_name: formData.full_name,
+          position: formData.position,
+          partylist: formData.partylist || 'Independent',
+          grade_level: formData.position === 'Grade Level Rep' ? formData.grade_level : undefined,
+          image_url: imageUrl
+        });
+        Toast.fire({ icon: 'success', title: 'Candidate added successfully' });
+      }
+      
+      // Reset form
+      setEditingId(null);
       setFormData({ full_name: '', position: POSITIONS_ORDER[0], partylist: '', grade_level: undefined });
       setImageFile(null);
       setImagePreview(null);
       fetchData();
-      Toast.fire({ icon: 'success', title: 'Candidate added successfully' });
+      
     } catch (error: any) {
       Swal.fire('Error', error.message, 'error');
     } finally {
@@ -745,7 +790,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <div className="hidden print:block">
                  <h2 className="text-xl font-bold text-center mb-6 uppercase border-b-2 border-black pb-2">Detailed Vote Breakdown per Grade Level</h2>
                  <div className="space-y-6">
-                    {Object.entries(data).map(([pos, candidates]) => (
+                    {Object.entries(data).map(([pos, candidates]: [string, ChartDataPoint[]]) => (
                        <div key={pos} className="break-inside-avoid">
                           <h3 className="font-bold text-lg mb-2 uppercase">{pos}</h3>
                           <table className="w-full text-xs text-left border-collapse border border-gray-400">
@@ -815,13 +860,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           {/* === TAB: CANDIDATES === */}
           {activeTab === 'candidates' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 print:hidden">
-              {/* Add Candidate Form */}
+              {/* Add/Edit Candidate Form */}
               <div className="lg:col-span-1">
                 <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4 sm:p-6 sticky top-24">
-                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Plus size={20} className="text-green-500" /> Encode Candidate
+                  <h2 className="text-lg font-bold mb-4 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                       {editingId ? <Pencil size={20} className="text-yellow-500" /> : <Plus size={20} className="text-green-500" />} 
+                       {editingId ? 'Edit Candidate' : 'Encode Candidate'}
+                    </span>
+                    {editingId && (
+                      <button 
+                         onClick={handleCancelEdit}
+                         className="text-xs text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition"
+                      >
+                         Cancel
+                      </button>
+                    )}
                   </h2>
-                  <form onSubmit={handleAddCandidate} className="space-y-4">
+                  <form onSubmit={handleAddOrUpdateCandidate} className="space-y-4">
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-slate-400">Full Name</label>
                       <input 
@@ -840,7 +896,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         onChange={e => setFormData({...formData, position: e.target.value})}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
                       >
-                        {POSITIONS_ORDER.map(pos => (
+                        {(POSITIONS_ORDER as string[]).map(pos => (
                           <option key={pos} value={pos}>{pos}</option>
                         ))}
                       </select>
@@ -894,13 +950,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           </div>
                         )}
                       </div>
+                      {editingId && !imageFile && (
+                          <p className="text-[10px] text-slate-500 text-center">Current photo will be kept unless changed.</p>
+                      )}
                     </div>
                     <button 
                       type="submit" 
                       disabled={isAdding}
-                      className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg shadow-green-600/20 disabled:opacity-50"
+                      className={cn(
+                        "w-full font-bold py-2.5 rounded-lg transition shadow-lg disabled:opacity-50",
+                        editingId 
+                           ? "bg-yellow-600 hover:bg-yellow-500 text-white shadow-yellow-600/20"
+                           : "bg-green-600 hover:bg-green-500 text-white shadow-green-600/20"
+                      )}
                     >
-                      {isAdding ? 'Saving...' : 'Enroll Candidate'}
+                      {isAdding ? 'Saving...' : (editingId ? 'Update Candidate' : 'Enroll Candidate')}
                     </button>
                   </form>
                 </div>
@@ -937,13 +1001,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                              </td>
                              <td className="px-4 py-3 sm:px-6 sm:py-4">{candidate.partylist}</td>
                              <td className="px-4 py-3 sm:px-6 sm:py-4 text-right">
-                               <button 
-                                 onClick={() => handleDelete(candidate.id, 'candidate')}
-                                 className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"
-                                 title="Delete Candidate"
-                               >
-                                 <Trash2 size={16} />
-                               </button>
+                               <div className="flex items-center justify-end gap-2">
+                                  <button 
+                                    onClick={() => handleEditClick(candidate)}
+                                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 p-2 rounded-lg transition"
+                                    title="Edit Candidate"
+                                  >
+                                    <Pencil size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDelete(candidate.id, 'candidate')}
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition"
+                                    title="Delete Candidate"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                               </div>
                              </td>
                            </tr>
                          ))}

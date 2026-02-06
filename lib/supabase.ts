@@ -196,6 +196,16 @@ export const addCandidate = async (candidateData: Partial<Candidate>): Promise<C
   return data;
 };
 
+// 8b. ADMIN: Update Candidate
+export const updateCandidate = async (id: string, updates: Partial<Candidate>): Promise<void> => {
+  const { error } = await supabase
+    .from('candidates')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
 // 9. ADMIN: Delete Candidate
 export const deleteCandidate = async (id: string): Promise<void> => {
   const { error } = await supabase.from('candidates').delete().eq('id', id);
