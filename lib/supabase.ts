@@ -212,6 +212,32 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+// 26. ADMIN: Bulk Import Candidates
+export const bulkImportCandidates = async (candidatesData: any[]): Promise<{ added: number, skipped: number }> => {
+  const processedData = candidatesData.map(c => ({
+    full_name: c.full_name?.trim(),
+    position: c.position?.trim(),
+    partylist: c.partylist?.trim() || 'Independent',
+    grade_level: c.grade_level ? parseInt(c.grade_level) : null,
+    image_url: null 
+  })).filter(c => c.full_name && c.position);
+
+  if (processedData.length === 0) return { added: 0, skipped: 0 };
+
+  // For candidates, we simply insert all. Assuming admin manages duplicates manually if needed.
+  const { data, error } = await supabase
+    .from('candidates')
+    .insert(processedData)
+    .select();
+
+  if (error) {
+    console.error('Error importing candidates:', error);
+    throw error;
+  }
+
+  return { added: data.length, skipped: 0 };
+};
+
 // 10. ADMIN: Get Vote Counts
 export const getVoteCounts = async (): Promise<Record<string, number>> => {
   // Use getAllVotes to ensure we have all records

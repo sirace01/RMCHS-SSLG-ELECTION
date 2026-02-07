@@ -11,6 +11,7 @@ import {
   addVoter, 
   deleteVoter, 
   bulkImportVoters,
+  bulkImportCandidates,
   uploadCandidatePhoto,
   getElectionStatus,
   setElectionStatus,
@@ -139,6 +140,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const candidateFileInputRef = useRef<HTMLInputElement>(null);
 
   // --- HELPER: Toast Notification ---
   const Toast = Swal.mixin({
@@ -272,8 +274,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     const wins: { position: string, candidate: ChartDataPoint | null }[] = [];
     Object.entries(data).forEach(([pos, candidates]: [string, ChartDataPoint[]]) => {
        if (candidates.length > 0) {
-         // Candidates are already sorted by votes in fetchData
-         wins.push({ position: pos, candidate: candidates[0] });
+         // Special logic for Representative positions: Top 2 winners
+         if (pos.includes('Representative')) {
+           const topWinners = candidates.slice(0, 2);
+           topWinners.forEach((c, index) => {
+             wins.push({ 
+               position: `${pos} (Rank ${index + 1})`, 
+               candidate: c 
+             });
+           });
+         } else {
+           // Default: Top 1 winner
+           wins.push({ position: pos, candidate: candidates[0] });
+         }
        }
     });
     return wins;
@@ -461,6 +474,72 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } finally {
       setIsAdding(false);
     }
+  };
+
+  const handleCandidateImportClick = () => {
+    if (isImporting) return;
+    candidateFileInputRef.current?.click();
+  };
+
+  const handleCandidateFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+        const text = evt.target?.result as string;
+        if (!text) return;
+        setIsImporting(true);
+        try {
+            const rows = text.split('\n');
+            const candidatesToImport = [];
+            // Skip header i=1
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i].trim();
+                if (!row) continue;
+                // Handle comma splitting carefully (simple split for now)
+                const cols = row.split(',');
+                if (cols.length >= 2) {
+                     candidatesToImport.push({
+                         full_name: cols[0]?.trim(),
+                         position: cols[1]?.trim(),
+                         partylist: cols[2]?.trim(),
+                         grade_level: cols[3]?.trim()
+                     });
+                }
+            }
+
+            if (candidatesToImport.length > 0) {
+                const { added } = await bulkImportCandidates(candidatesToImport);
+                Swal.fire({
+                    title: 'Import Complete',
+                    text: `Successfully added ${added} candidates.`,
+                    icon: 'success',
+                    confirmButtonColor: '#16a34a'
+                });
+                fetchData();
+            } else {
+                Swal.fire('Invalid CSV', 'No valid data found.', 'warning');
+            }
+        } catch (err: any) {
+            Swal.fire('Import Error', err.message, 'error');
+        } finally {
+            setIsImporting(false);
+            e.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDownloadCandidateTemplate = () => {
+    const csvContent = "full_name,position,partylist,grade_level\nJuan Dela Cruz,President,Maka-Tao Party,\nMaria Clara,Grade Level Rep,Maka-Bayan Party,7";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "candidate_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAddVoter = async (e: React.FormEvent) => {
@@ -967,6 +1046,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       {isAdding ? 'Saving...' : (editingId ? 'Update Candidate' : 'Enroll Candidate')}
                     </button>
                   </form>
+
+                  {/* IMPORT CSV BUTTONS */}
+                  <div className="mt-6 pt-6 border-t border-slate-700 space-y-3">
+                     <div>
+                        <button 
+                           disabled={isImporting}
+                           onClick={handleCandidateImportClick}
+                           className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg transition flex items-center justify-center gap-2 border border-slate-600 cursor-pointer"
+                        >
+                           {isImporting ? <span className="animate-spin">⏳</span> : <FileSpreadsheet size={18} />}
+                           Import Candidates CSV
+                        </button>
+                        <input 
+                           type="file" 
+                           ref={candidateFileInputRef}
+                           accept=".csv"
+                           className="hidden"
+                           onChange={handleCandidateFileImport}
+                           disabled={isImporting}
+                        />
+                     </div>
+                     <button 
+                        onClick={handleDownloadCandidateTemplate}
+                        className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 font-medium py-2 rounded-lg transition flex items-center justify-center gap-2 text-xs"
+                     >
+                        <Download size={14} /> Download CSV Template
+                     </button>
+                     <p className="text-[10px] text-slate-500 text-center">
+                        CSV Headers: full_name, position, partylist, grade_level
+                     </p>
+                  </div>
                 </div>
               </div>
 
