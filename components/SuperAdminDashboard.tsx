@@ -251,7 +251,7 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, branding
       try {
         if (type === 'voters') {
           await wipeAllVoters();
-          Swal.fire('Wiped', 'All voters have been deleted.', 'success');
+          Swal.fire('Wiped', 'All voters AND votes have been deleted.', 'success');
         } else if (type === 'candidates') {
           await wipeAllCandidates();
           Swal.fire('Wiped', 'All candidates and votes have been deleted.', 'success');
@@ -393,8 +393,8 @@ const SuperAdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, branding
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-red-950/20 border border-red-900/50 rounded-2xl p-6 hover:bg-red-900/30 transition duration-300">
                      <Users size={32} className="text-red-500 mb-4" />
-                     <h3 className="text-lg font-bold text-red-200">Wipe Voters</h3>
-                     <p className="text-xs text-red-400/60 mb-6">Deletes all registered voters. Passcodes will be lost.</p>
+                     <h3 className="text-lg font-bold text-red-200">Wipe Voters & Votes</h3>
+                     <p className="text-xs text-red-400/60 mb-6">Deletes all registered voters AND all votes. Passcodes will be lost.</p>
                      <button onClick={() => handleWipe('voters')} className="w-full py-2 rounded-lg border border-red-800 text-red-500 hover:bg-red-900 font-bold text-sm">
                         Wipe Voters DB
                      </button>

@@ -383,6 +383,10 @@ export const verifySuperAdminCredentials = async (user: string, pass: string): P
 
 // 21. SUPER: Wipe All Voters
 export const wipeAllVoters = async (): Promise<void> => {
+  // Also wipe votes because votes are tied to the election cycle of these voters.
+  // We use neq 'grade_level' 0 as a catch-all for real votes.
+  await supabase.from('votes').delete().neq('grade_level', 0);
+
   const { error } = await supabase.from('voters').delete().neq('lrn', '000000');
   if (error) throw error;
 };
